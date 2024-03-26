@@ -133,8 +133,6 @@ dependencies = [
 [[package]]
 name = "battlesnake-game-types"
 version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "370d3e9c1067908a33bb29721a19f0658eb3b923d046d6ad38f30494658b4659"
 dependencies = [
  "fxhash",
  "itertools",

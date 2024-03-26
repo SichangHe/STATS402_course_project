@@ -1,0 +1,3 @@
+[submodule "battlesnake-game-types"]
+	path = battlesnake-game-types
+	url = git@github.com:SichangHe/fables-tales--battlesnake-game-types.git

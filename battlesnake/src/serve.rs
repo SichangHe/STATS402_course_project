@@ -3,9 +3,8 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use battlesnake_game_types::{types::Move, wire_representation::Game};
 
-use self::info::Info;
+use crate::{info::Info, logic::make_move};
 
 use super::*;
 
@@ -38,8 +37,18 @@ async fn handle_start(Json(game_state): Json<Game>) -> StatusCode {
 #[instrument]
 async fn handle_move(Json(game_state): Json<Game>) -> Json<Move> {
     info!("Move.");
-    // TODO: Implement logic.
-    Json(Move::Up)
+    let move_to_take = do_handle_move(game_state).unwrap_or_else(|why| {
+        warn!("Failed to make move, moving up: {:?}", why);
+        Move::Up
+    });
+    Json(move_to_take)
+}
+
+fn do_handle_move(game_state: Game) -> Result<Move, Box<dyn Error>> {
+    let snake_ids = build_snake_id_map(&game_state);
+    let compact_game = StandardCellBoard4Snakes11x11::convert_from_game(game_state, &snake_ids)?;
+
+    Ok(make_move(&compact_game))
 }
 
 #[instrument]

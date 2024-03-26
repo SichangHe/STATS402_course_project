@@ -1,9 +1,17 @@
+use std::error::Error;
+
 use anyhow::Result;
+use battlesnake_game_types::{
+    compact_representation::StandardCellBoard4Snakes11x11,
+    types::{build_snake_id_map, Move},
+    wire_representation::Game,
+};
 use serde::Serialize;
 use tracing::*;
 use tracing_subscriber::EnvFilter;
 
 pub mod info;
+pub mod logic;
 pub mod serve;
 
 #[tokio::main]

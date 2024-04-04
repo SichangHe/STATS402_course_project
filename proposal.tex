@@ -6,8 +6,15 @@
     \newcommand{\instruction}[1]{\textcolor{orange}{#1}}
     % \renewcommand{\instruction}[1]{} % Uncomment to hide instructions.
 
+\newcommand{\hidden}[1]{}
+
+\usepackage{biblatex}
+    \addbibresource{references.bib}
+
+\usepackage[colorlinks=false]{hyperref}
+
 \title{STATS 402 - Interdisciplinary Data Analysis\\
-    Machine Learning for Battlesnake Games\\
+    Resource-Constrained Reinforcement Learning for Battlesnake\\
     Milestone Report: Stage 1
 }
 \author{Sichang He\\
@@ -27,6 +34,28 @@
     selection by analyzing the characteristics of the selected data set,
     as well as the development trend of related fields, application prospects,
     and commonly used methods}
+
+Battlesnake~\cite{battlesnake}
+is a popular online programming competition in the form of a simultaneous
+multiplayer board game. Similar to the arcade snake game,
+each player controls a snake in real time on a finite grid board to be the last
+one alive; the snake can change directions within each turn,
+grow in length by eating randomly spawned food,
+die from colliding with walls or snake bodies,
+or starve to death after not eating for a long time (100 turns).
+Instead of having human players control the snakes, in Battlesnake,
+players develop a computer program to control their snakes' directions in each
+turn, by implementing a web server that answers the game server's request.
+This means players can implement their algorithms freely,
+as long as they can finish answering the request within the time limitation
+(500ms).
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\linewidth]{snake_game_screenshot.png}
+    \caption{A Standard Battlesnake Game with 4 Snakes on A 11x11 Board.}
+    \label{fig:game}
+\end{figure}
 
 Placeholder~\cite{schulman2017proximal}
 
@@ -50,7 +79,6 @@ Placeholder~\cite{schulman2017proximal}
     \(\leq 15\%\): no penalty, you will get 2 points
 }
 
-\bibliographystyle{plain}
-\bibliography{references.bib}
+\printbibliography
 
 \end{document}

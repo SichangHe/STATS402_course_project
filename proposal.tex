@@ -14,7 +14,7 @@
 \usepackage[colorlinks=false]{hyperref}
 
 \title{STATS 402 - Interdisciplinary Data Analysis\\
-    Resource-Constrained Reinforcement Learning for Battlesnake\\
+    Resource-Constrained Deep Reinforcement Learning for Battlesnake\\
     Milestone Report: Stage 1
 }
 \author{Sichang He\\
@@ -53,11 +53,54 @@ as long as they can finish answering the request within the time limitation
 \begin{figure}
     \centering
     \includegraphics[width=0.4\linewidth]{snake_game_screenshot.png}
-    \caption{A Standard Battlesnake Game with 4 Snakes on A 11x11 Board.}
+    \caption{A Standard Battlesnake Game with 4 Snakes on A 11x11 Board.
+        The transparent snake is already dead.
+    }
     \label{fig:game}
 \end{figure}
 
-Placeholder~\cite{schulman2017proximal}
+Battlesnake is an ideal target for implementing deep reinforcement learning.
+Traditionally,
+the leader board is occupied by players employing various heuristics and tree
+search algorithms, most notably minimax. %TODO: Cite.
+However, heuristics alone are inadequate to achieve superb performance. %TODO: Cite.
+Additionally,
+given the large search space (over $(3^n)^t$ raw possibilities for $t$ turns in
+a game with $n$ snakes),
+tree search algorithms are computationally demanding even when techniques like
+alpha-beta pruning are employed. This cost problem is magnified,
+especially considering the game sets a 500ms action time limit.
+Similar to Battlesnake,
+the game of Go also has a large possibility space and potentially long time
+horizon,
+and AlphaGo has demonstrated that deep reinforcement learning can excel in such
+situations and achieve superhuman-level performance~\cite{silver2016mastering}.
+More recent examples of deep reinforcement learning systems acing video games include
+OpenAI Five defeating human world champions in Dota 2,
+a much more complicated online multiplayer battle game~\cite{berner2019dota}.
+Therefore,
+it is sensible that deep reinforcement learning can possibly be employed to build
+state-of-the-art Battlesnake agents.
+
+A deeper aspect to explore is developing deep reinforcement learning agents to
+operate in resource-constrained environments.
+Most Battlesnake players are amateurs hosting their web servers on cheap VMs on
+cloud platforms or Raspberry Pi
+computers\footnote{\url{https://play.battlesnake.com/leaderboard/standard}.}.
+Similar to these resource-constrained environments, use cases,
+such as autonomous spacecraft control,
+have seen deep reinforcement learning applied in
+them~\cite{harris2022generation}. More closely related,
+proximal policy optimization (PPO)~\cite{schulman2017proximal},
+the same deep reinforcement learning technique employed by OpenAI Five,
+has been successfully deployed in compute and memory-limited robotic control,
+specifically quadrotor navigation~\cite{huang2023collision,hegde2023hyperppo}.
+Thus,
+developing a deep reinforcement learning Battlesnake agent capable of operating
+on low-capability devices,
+like low-tier cloud VMs and Raspberry Pis, should be feasible;
+such solutions would also demonstrate more fairness and practical contributions
+among the competition.
 
 \section{Research Content and Objectives}
 

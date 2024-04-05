@@ -61,26 +61,27 @@ as long as they can finish answering the request within the time limitation
 
 Battlesnake is an ideal target for implementing deep reinforcement learning.
 Traditionally,
-the leader board is occupied by players employing various heuristics and tree
-search algorithms, most notably minimax. %TODO: Cite.
-However, heuristics alone are inadequate to achieve superb performance. %TODO: Cite.
-Additionally,
+the leader board is occupied by players employing various heuristics and Monte
+Carlo tree search algorithms,
+most notably minimax~\cite{hill2018building,binnersley2020battlesnake}. However,
+more recently,
+even well-defined heuristics and tree search algorithms are only adequate for
+intermediate-level gameplay~\cite{schier2019adversarial}. Additionally,
 given the large search space (over $(3^n)^t$ raw possibilities for $t$ turns in
 a game with $n$ snakes),
 tree search algorithms are computationally demanding even when techniques like
 alpha-beta pruning are employed. This cost problem is magnified,
 especially considering the game sets a 500ms action time limit.
-Similar to Battlesnake,
-the game of Go also has a large possibility space and potentially long time
-horizon,
+To address these problems, we compare Battlesnake to the game of Go,
+which also has a large possibility space and potentially long time horizon,
 and AlphaGo has demonstrated that deep reinforcement learning can excel in such
 situations and achieve superhuman-level performance~\cite{silver2016mastering}.
-More recent examples of deep reinforcement learning systems acing video games include
-OpenAI Five defeating human world champions in Dota 2,
+More recent examples of deep reinforcement learning systems acing video games
+include OpenAI Five defeating human world champions in Dota 2,
 a much more complicated online multiplayer battle game~\cite{berner2019dota}.
 Therefore,
-it is sensible that deep reinforcement learning can possibly be employed to build
-state-of-the-art Battlesnake agents.
+it is sensible that deep reinforcement learning can possibly be employed to
+build state-of-the-art Battlesnake agents.
 
 A deeper aspect to explore is developing deep reinforcement learning agents to
 operate in resource-constrained environments.

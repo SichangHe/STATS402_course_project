@@ -45,10 +45,9 @@ die from colliding with walls or snake bodies,
 or starve to death after not eating for a long time (100 turns).
 Instead of having human players control the snakes, in Battlesnake,
 players develop a computer program to control their snakes' directions in each
-turn, by implementing a web server that answers the game server's request.
+turn, by implementing a web server that responds to the game server's request.
 This means players can implement their algorithms freely,
-as long as they can finish answering the request within the time limitation
-(500ms).
+as long as they can finish the response within the time limitation (500ms).
 
 \begin{figure}
     \centering
@@ -107,10 +106,38 @@ among the competition.
 
 \todo{and critical scientific problems to be solved}
 
+We propose to develop a pure deep reinforcement learning Battlesnake agent.
+
+\paragraph{How well can a purely deep-reinforcement-learning-based agent
+perform?} As shown by AlphaZero~\cite{silver2017mastering}, a \emph{tabula rasa}
+deep reinforcement learning agent with only a simulation environment is already
+enough to achieve superhuman performance in many board games. However,
+AlphaZero was built with a massive neural network and trained using 4000 TPUs,
+a condition unthinkable for the ordinary Battlesnake players. Meanwhile,
+prior Battlesnake implementations utilizing reinforcement learning often also
+incorporate heuristics and tree search,
+instead of relying purely on reinforcement learning
+algorithms~\cite{chung2020battlesnake,binnersley2020battlesnake}.
+As such, we are interesting to learn how well such pure agents can perform.
+
 \section{Research Plan and Feasibility Analysis}
 
 \todo{including research methods, technical routes, experimental methods,
     key technologies, etc.}
+
+The agent will be developed by referencing the framework
+in~\cite{chung2020battlesnake}.
+
+Feature extraction will follow the methods in~\cite{siddiqui2020multiagent}.
+%TODO: Specify.
+
+To evaluate our agent,
+we propose to use the snake named ``ich heisse marvin'' as our benchmark target.
+``ich heisse marvin'' is an open-source tree search Battlesnake implementation
+that consistently places top 8 in the standard leaderboard recently.
+We plan to let different versions of our agent play against ``ich heisse
+marvin'' and calculate the win rate,
+so that we can evaluate its performance over time.
 
 \section{Features, Innovations and the Expected Results}
 

@@ -7,7 +7,8 @@
 \usepackage{xcolor}
     \newcommand{\todo}[1]{\textcolor{red}{[ #1 ]}}
     \newcommand{\instruction}[1]{\textcolor{orange}{#1}}
-    % \renewcommand{\instruction}[1]{} % Uncomment to hide instructions.
+    \renewcommand{\todo}[1]{} % Uncomment to hide todos.
+    \renewcommand{\instruction}[1]{} % Uncomment to hide instructions.
 
 \newcommand{\hidden}[1]{}
 
@@ -30,6 +31,20 @@
 \subparagraph{Abstract}
 
 \todo{Insert a very brief paragraph describing your project (200 words)}
+
+Battlesnake is a popular online programming competition where players develop
+computer agents to play the classic snake game.
+We propose to combine Battlesnake and deep reinforcement learning,
+a powerful technique to develop gameplay agents. Distinct from prior studies,
+we aim to develop our agent to rely purely on the policies learned with proximal
+policy optimization, without any heuristics or Monte Carlo tree search.
+Additionally,
+we will adapt to resource-constrained environments common to Battlesnake
+players, improving the practicality and fairness of our approach.
+We will benchmark our agent against a top-tier agent that is based on heuristics
+and tree search to evaluate its performance. Finally,
+we also anticipate our agent to perform well against the community under a
+real-world setting.
 
 \section{Project Rationale}
 
@@ -90,8 +105,7 @@ build state-of-the-art Battlesnake agents.
 A deeper aspect to explore is developing deep reinforcement learning agents to
 operate in resource-constrained environments.
 Most Battlesnake players are amateurs hosting their web servers on cheap VMs on
-cloud platforms or Raspberry Pi
-computers\footnote{\url{https://play.battlesnake.com/leaderboard/standard}.}.
+cloud platforms or Raspberry Pi computers~\cite{standard_leaderboard}.
 Similar to these resource-constrained environments, use cases,
 such as autonomous spacecraft control,
 have seen deep reinforcement learning applied in
@@ -102,8 +116,8 @@ has been successfully deployed in compute and memory-limited robotic control,
 specifically quadrotor navigation~\cite{huang2023collision,hegde2023hyperppo}.
 Thus,
 developing a deep reinforcement learning Battlesnake agent capable of operating
-on low-capability devices,
-like low-tier cloud VMs and Raspberry Pis, should be feasible;
+on low-capability devices, like low-tier cloud VMs and Raspberry Pis,
+should be feasible;
 such solutions would also demonstrate more fairness and practical contributions
 among the competition.
 
@@ -246,10 +260,28 @@ so that we can evaluate its performance over time.
 
 As an additional evaluation,
 we will deploy our agent on a standard Duke VM and join the standard
-leaderboard\footnote{\url{https://play.battlesnake.com/leaderboard/standard}}
-to play against other players' snakes.
+leaderboard~\cite{standard_leaderboard} to play against other players' snakes.
 
 \section{Features, Innovations and the Expected Results}
+
+By leveraging deep reinforcement learning techniques,
+we Battlesnake agent is expected to operate only based on the learned policies,
+without any heuristics or tree search.
+Furthermore, it will be tailored to operate within resource-constrained
+environments, such as low-tier cloud VMs and Raspberry Pis,
+demonstrating the efficiency and practicality of our approach.
+
+On top of these features, we combine Battlesnake,
+our custom feature extraction method, PPO, and real world competition.
+This unique new combination makes our approach innovative.
+
+For the results,
+we anticipate the agent to have decent performance compared to tree-search-based
+agents. Our agent's win rate against \emph{ich heisse marvin}
+should grow as the training process goes on,
+and eventually stabilize at a level slightly higher than \emph{ich heisse
+marvin}'s. The agent should also be competitive in the standard leaderboard,
+and reach top 20 given enough time.
 
 \instruction{
     PENALTY FOR PLAGIARISM:\\

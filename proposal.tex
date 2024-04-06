@@ -106,19 +106,40 @@ among the competition.
 
 \todo{and critical scientific problems to be solved}
 
-We propose to develop a pure deep reinforcement learning Battlesnake agent.
+We propose to develop a purely deep-reinforcement-learning-based Battlesnake
+agent capable of operating in resource-constrained environments. Specify,
+we raise the following questions.
 
 \paragraph{How well can a purely deep-reinforcement-learning-based agent
-perform?} As shown by AlphaZero~\cite{silver2017mastering}, a \emph{tabula rasa}
-deep reinforcement learning agent with only a simulation environment is already
-enough to achieve superhuman performance in many board games. However,
+    perform?
+} As shown by AlphaZero~\cite{silver2017mastering},
+a deep reinforcement learning agent can learn,
+with no other knowledge about the game than only a simulation environment,
+is already enough to achieve superhuman performance in many board games.
+However,
 AlphaZero was built with a massive neural network and trained using 4000 TPUs,
 a condition unthinkable for the ordinary Battlesnake players. Meanwhile,
 prior Battlesnake implementations utilizing reinforcement learning often also
 incorporate heuristics and tree search,
 instead of relying purely on reinforcement learning
-algorithms~\cite{chung2020battlesnake,binnersley2020battlesnake}.
-As such, we are interesting to learn how well such pure agents can perform.
+algorithms~\cite{chung2020battlesnake,binnersley2020battlesnake}. As such,
+we are interested to learn how well such purely
+deep-reinforcement-learning-based agents can perform.
+
+\paragraph{How to strive a balance between fast inference time and high model
+    capability?
+}
+We aim to develop our agent to be capable of operating on resource-constrained
+environments,
+akin to the low-tier VMs and Raspberry Pis other Battlesnake players deploy
+their agents on. For our purpose,
+we will target a standard VM provided by Duke University,
+which has two Intel Xeon 6248R CPU cores and 3.6GiB of RAM;
+this CPU is roughly twice as powerful as a Raspberry Pi 5's CPU\footnote{See
+    \url{https://www.cpubenchmark.net/compare/3732vs5893/Intel-Xeon-Gold-6248R-vs-ARM-Cortex-A76-4-Core-2600-MHz}.
+}. However, we also target a high performance in the game. Therefore,
+we need to design the neural network of the agent,
+such that the agent utilizes as much time as possible when conducting inference.
 
 \section{Research Plan and Feasibility Analysis}
 

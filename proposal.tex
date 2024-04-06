@@ -139,7 +139,7 @@ this CPU is roughly twice as powerful as a Raspberry Pi 5's CPU\footnote{See
     \url{https://www.cpubenchmark.net/compare/3732vs5893/Intel-Xeon-Gold-6248R-vs-ARM-Cortex-A76-4-Core-2600-MHz}.
 }. However, we also target a high performance in the game. Therefore,
 we need to design the neural network of the agent,
-such that the agent utilizes as much time as possible when conducting inference.
+such that the agent utilizes as much time as possible when performing inference.
 
 \section{Research Plan and Feasibility Analysis}
 
@@ -152,10 +152,26 @@ in~\cite{chung2020battlesnake}.
 Feature extraction will follow the methods in~\cite{siddiqui2020multiagent}.
 %TODO: Specify.
 
+The reinforcement learning training will be done using
+PPO~\cite{schulman2017proximal}.
+We choose PPO because of its flexibility and high empirical performance in
+adversarial games,
+as observed
+in~\cite{berner2019dota,binnersley2020battlesnake,chung2020battlesnake}.
+
+We will first design a neural network that can reliably perform inference within
+440ms on Duke's standard VM.
+We choose to aim at 440ms because the average ping from the VM to the
+Battlesnake website is around 20ms,
+and we reserve 3 times the time for network out of the 500ms allocated action
+time. We will train the agent a server with a GPU.
+
 To evaluate our agent,
 we propose to use the snake named ``ich heisse marvin'' as our benchmark target.
 ``ich heisse marvin'' is an open-source tree search Battlesnake implementation
-that consistently places top 8 in the standard leaderboard recently.
+that recently consistently ranks top 8 in the standard leaderboard while only
+deployed on a Raspberry Pi; its strategy utilizes max\textsuperscript{n}
+and alpha-beta pruning.
 We plan to let different versions of our agent play against ``ich heisse
 marvin'' and calculate the win rate,
 so that we can evaluate its performance over time.

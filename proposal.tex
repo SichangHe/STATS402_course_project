@@ -161,7 +161,9 @@ we will pad the board to a 21x21 grid and rotate it so that the snake's head is
 centered and faces up. Therefore,
 the three valid actions for the snake would be ``up'', ``left'',
 and ``right'' only.
-We will have 12 layers of 21x21 matrices ($\mathbb R^{12\times21\times21}$),
+We ignore opponents' health because snakes hardly starve in
+practice~\cite{siddiqui2020multiagent}.
+We will have 10 layers of 21x21 matrices ($\mathbb R^{10\times21\times21}$),
 with each entry normalized to be within $(-1,1)$, and 0 indicating emptiness:
 \begin{itemize}
     \item Wall layer. 1 indicates that the position is out of bound.
@@ -172,8 +174,8 @@ with each entry normalized to be within $(-1,1)$, and 0 indicating emptiness:
         Large $v_b$'s indicate the position would remain occupied for longer.
         The tail always corresponds to a $v_b<0$ for distinction.
     \item Three opponent snakes' layers.
-          These layers will be sorted by the opponents' length and health.
-          Each opponent snake will be represented by 3 layers. \begin{itemize}
+          These layers will be sorted by the opponents' length and then health.
+          Each opponent snake will be represented by 2 layers. \begin{itemize}
               \item Head layer. The value of each head will be calculated as $$
                         v_h:=\frac{1+2(L_{\text{opponent}}-L_{\text{us}})}{239}.
                     $$ $v_h>0$ indicates that the opponent snake is at least as
@@ -181,12 +183,6 @@ with each entry normalized to be within $(-1,1)$, and 0 indicating emptiness:
                     so colliding with their head would kill our snake;
                     $v_h<0$ indicates the opposite.
               \item Body layer. This layer will also be calculated using $v_b$.
-              \item Health layer.
-                    The value will be
-                    $\displaystyle\frac{H_{\text{opponent}}}{100}$ where $H$ is
-                    the health of the snake.
-                    This indicates how probable the opponent snake would survive
-                    starvation.
           \end{itemize}
     \item Food layer.
           The value will be $\displaystyle\frac{101-H_{\text{us}}}{100}$ if

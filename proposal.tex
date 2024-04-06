@@ -1,7 +1,9 @@
+%!TEX = xelatex
 \documentclass[a4paper]{article}
 \usepackage[margin=1in]{geometry}
 \usepackage{graphicx}
 \usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{xcolor}
     \newcommand{\todo}[1]{\textcolor{red}{[ #1 ]}}
     \newcommand{\instruction}[1]{\textcolor{orange}{#1}}
@@ -18,7 +20,7 @@
     Resource-Constrained Deep Reinforcement Learning for Battlesnake\\
     Milestone Report: Stage 1
 }
-\author{Sichang He\\
+\author{Steven Hé (Sīchàng)\\
     sichang.he@dukekunshan.edu.cn
 }
 
@@ -190,28 +192,46 @@ with each entry normalized to be within $(-1,1)$, and 0 indicating emptiness:
           A large value indicates our snake is hungry.
 \end{itemize}
 
+We design the reinforcement learning reward based on the outcome of the game.
+The reward will be 1 if our Battlesnake agent wins, or -1 if it loses.
+To speed up training convergence,
+we will also apply a reward of 0.002 for each turn survived,
+following the practice in~\cite{chung2020battlesnake}.
+
 The reinforcement learning training will be done using
 PPO~\cite{schulman2017proximal}.
 We choose PPO because of its flexibility and high empirical performance in
 adversarial games,
 as observed
 in~\cite{berner2019dota,binnersley2020battlesnake,chung2020battlesnake}.
-During training, we will simulate the standard game with four players.
+During training, we will simulate self-play games with four players,
+each controlled by our agent.
 To optimize our agent for competing against different levels of opponents,
-each player of the simulated game will have a 20\% chance of being an older
-version of our agent, similar to the setting in~\cite{silver2017mastering}.
-However, to avoid useless simulations,
+each player of the simulated game will have a 20\% chance of being controlled by
+an older version of our agent,
+similar to the setting in~\cite{silver2017mastering}. However,
+to avoid useless simulations,
 we will reassign the players if all of them are older versions.
 
 We plan to develop our neural network gradually to fit the computation budget.
 We will first use a simple multilayer perceptron (MLP)
 to validate our PPO approach. Then,
-we will design a neural network that can reliably perform inference within 440ms
-on Duke's standard VM.
+we will design a more complicated neural network that can reliably perform
+inference within 440ms on a standard Duke VM.
 We choose to aim at 440ms because the average ping from the VM to the
 Battlesnake website is around 20ms,
-and we reserve 3 times the time for network out of the 500ms allocated action
-time. We will train the agent a server with a GPU.
+and we reserve three times that amount for network out of the 500ms allocated
+action time. We will train the agent on a server with a GPU.
+
+We will base our training implementation on the successor of OpenAI
+Gym~\cite{brockman2016openai} called Gymnasium~\cite{farama2024gymnasium},
+and Stable Baselines3~\cite{raffin2024stable}.
+We will implement an Gymnasium gym environment based on the implementation
+in~\cite{chung2020battlesnake},
+and utilize the PPO implementation in Stable Baselines3 to train our agent.
+Since these packages do most of the heavy-lifting,
+this implementation should be feasible even though the training algorithms are
+non-trivial.
 
 To benchmark our agent,
 we propose to use the snake named ``ich heisse marvin'' as our comparison
@@ -223,6 +243,11 @@ max\textsuperscript{n} and alpha-beta pruning.
 We plan to let different versions of our agent play against \emph{ich heisse
     marvin} and calculate the win rate,
 so that we can evaluate its performance over time.
+
+As an additional evaluation,
+we will deploy our agent on a standard Duke VM and join the standard
+leaderboard\footnote{\url{https://play.battlesnake.com/leaderboard/standard}}
+to play against other players' snakes.
 
 \section{Features, Innovations and the Expected Results}
 

@@ -1,6 +1,7 @@
 \documentclass[a4paper]{article}
 \usepackage[margin=1in]{geometry}
 \usepackage{graphicx}
+\usepackage{amsmath}
 \usepackage{xcolor}
     \newcommand{\todo}[1]{\textcolor{red}{[ #1 ]}}
     \newcommand{\instruction}[1]{\textcolor{orange}{#1}}
@@ -42,10 +43,12 @@ each player controls a snake in real time on a finite grid board to be the last
 one alive; the snake can change directions within each turn,
 grow in length by eating randomly spawned food,
 die from colliding with walls or snake bodies,
-or starve to death after not eating for a long time (100 turns).
+or starve to death after not eating for a long time (100 turns),
+as demonstrated in Fig.~\ref{fig:game}.
 Instead of having human players control the snakes, in Battlesnake,
 players develop a computer program to control their snakes' directions in each
-turn, by implementing a web server that responds to the game server's request.
+turn, by implementing a web server that responds to the game server's request,
+which contains the entire game state.
 This means players can implement their algorithms freely,
 as long as they can finish the response within the time limitation (500ms).
 
@@ -146,11 +149,50 @@ such that the agent utilizes as much time as possible when performing inference.
 \todo{including research methods, technical routes, experimental methods,
     key technologies, etc.}
 
-The agent will be developed by referencing the framework
-in~\cite{chung2020battlesnake}.
+The agent will be developed by referencing open-source implementations
+in~\cite{siddiqui2020multiagent,chung2020battlesnake,wrenger2024rusty}.
+It will be designed to compete in the standard Battlesnake game on an 11x11
+board with 4 competing players.
 
-Feature extraction will follow the methods in~\cite{siddiqui2020multiagent}.
-%TODO: Specify.
+Feature extraction will follow the basic methods
+in~\cite{siddiqui2020multiagent,archinukmonte}, with some adjustments.
+Specifically,
+we will pad the board to a 21x21 grid and rotate it so that the snake's head is
+centered and faces up. Therefore,
+the three valid actions for the snake would be ``up'', ``left'',
+and ``right'' only.
+We will have 12 layers of 21x21 matrices ($\mathbb R^{12\times21\times21}$),
+with each entry normalized to be within $(-1,1)$, and 0 indicating emptiness:
+\begin{itemize}
+    \item Wall layer. 1 indicates that the position is out of bound.
+    \item Our snake's body layer.
+        The value of each of our body segment position will be calculate as $$
+            v_b:=\frac{2L_{\text{rest of body}}-1}{239}
+        $$ where $L$ is the length of the snake.
+        Large $v_b$'s indicate the position would remain occupied for longer.
+        The tail always corresponds to a $v_b<0$ for distinction.
+    \item Three opponent snakes' layers.
+          These layers will be sorted by the opponents' length and health.
+          Each opponent snake will be represented by 3 layers. \begin{itemize}
+              \item Head layer. The value of each head will be calculated as $$
+                        v_h:=\frac{1+2(L_{\text{opponent}}-L_{\text{us}})}{239}.
+                    $$ $v_h>0$ indicates that the opponent snake is at least as
+                    long as our snake,
+                    so colliding with their head would kill our snake;
+                    $v_h<0$ indicates the opposite.
+              \item Body layer. This layer will also be calculated using $v_b$.
+              \item Health layer.
+                    The value will be
+                    $\displaystyle\frac{H_{\text{opponent}}}{100}$ where $H$ is
+                    the health of the snake.
+                    This indicates how probable the opponent snake would survive
+                    starvation.
+          \end{itemize}
+    \item Food layer.
+          The value will be $\displaystyle\frac{101-H_{\text{us}}}{100}$ if
+          there is food in the position.
+          A large value indicates our snake is hungry.
+\end{itemize}
 
 The reinforcement learning training will be done using
 PPO~\cite{schulman2017proximal}.
@@ -158,22 +200,32 @@ We choose PPO because of its flexibility and high empirical performance in
 adversarial games,
 as observed
 in~\cite{berner2019dota,binnersley2020battlesnake,chung2020battlesnake}.
+During training, we will simulate the standard game with four players.
+To optimize our agent for competing against different levels of opponents,
+each player of the simulated game will have a 20\% chance of being an older
+version of our agent, similar to the setting in~\cite{silver2017mastering}.
+However, to avoid useless simulations,
+we will reassign the players if all of them are older versions.
 
-We will first design a neural network that can reliably perform inference within
-440ms on Duke's standard VM.
+We plan to develop our neural network gradually to fit the computation budget.
+We will first use a simple multilayer perceptron (MLP)
+to validate our PPO approach. Then,
+we will design a neural network that can reliably perform inference within 440ms
+on Duke's standard VM.
 We choose to aim at 440ms because the average ping from the VM to the
 Battlesnake website is around 20ms,
 and we reserve 3 times the time for network out of the 500ms allocated action
 time. We will train the agent a server with a GPU.
 
-To evaluate our agent,
-we propose to use the snake named ``ich heisse marvin'' as our benchmark target.
-``ich heisse marvin'' is an open-source tree search Battlesnake implementation
-that recently consistently ranks top 8 in the standard leaderboard while only
-deployed on a Raspberry Pi; its strategy utilizes max\textsuperscript{n}
-and alpha-beta pruning.
-We plan to let different versions of our agent play against ``ich heisse
-marvin'' and calculate the win rate,
+To benchmark our agent,
+we propose to use the snake named ``ich heisse marvin'' as our comparison
+target. \emph{ich heisse marvin}~\cite{wrenger2024rusty}
+is an open-source tree search Battlesnake implementation.
+It recently consistently ranks top 8 in the standard leaderboard,
+despite being deployed on a Raspberry Pi. Its strategy utilizes
+max\textsuperscript{n} and alpha-beta pruning.
+We plan to let different versions of our agent play against \emph{ich heisse
+    marvin} and calculate the win rate,
 so that we can evaluate its performance over time.
 
 \section{Features, Innovations and the Expected Results}

@@ -22,12 +22,11 @@ Duke Kunshan University
 - Resource constraint
 - Benchmark & real-world competition
 
-<!-- slide -->
-## Battlesnake
+<!-- slide id game-animation -->
+<img src="https://static.battlesnake.com/play/releases/2.1.0/ui/img/game.gif"
+alt="Battlesnake Game Animation" style="max-height: 60vh;">
 
-![Battlesnake Game Screenshot](snake_game_screenshot.png)
-
-- Online programming competition
+- Battlesnake: online programming competition
 - Large search space, time horizon, 500ms constraint
 - Heuristics, tree search
 
@@ -47,7 +46,7 @@ Prior RL Battlesnake agents used heuristics
 
 Cloud VMs/ Raspberry Pis
 
-![Standard leaderboard](leaderboard.png)
+<img src="leaderboard.png" alt="Standard leaderboard" style="max-height: 80vh;">
 
 <!-- slide -->
 ## Resource Constraint
@@ -55,6 +54,7 @@ Cloud VMs/ Raspberry Pis
 - Fairness/practicality: no powerful computers
 - Inference time vs model capability
 - Target: 440ms on Duke VM (2CPU, 3.6G RAM)
+    - $\approx$ 2 Pis
 
 <!-- slide -->
 ## Training Plan
@@ -74,17 +74,16 @@ Cloud VMs/ Raspberry Pis
 - Opponent head: relative length
 - Food: how hungry
 
-<!-- slide -->
-*ich heisse marvin* (6th)
-
-![Standard leaderboard](leaderboard.png)
+<img src="snake_game_screenshot.png" alt="Battlesnake Game Screenshot"
+style="max-height: 40vh;">
 
 <!-- slide -->
-
 ## Evaluation Plan
 
-- Benchmark: max<sup>n</sup> tree-search snake *ich heisse marvin*
+- Benchmark: max<sup>n</sup> tree-search snake *ich heisse marvin* (6th)
 - Real-world competition: deploy on Duke VM + join leaderboard
+
+<img src="leaderboard.png" alt="Standard leaderboard" style="max-height: 80vh;">
 
 <!-- slide -->
 ## Expected Results

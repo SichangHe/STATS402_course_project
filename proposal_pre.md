@@ -53,6 +53,7 @@ Cloud VMs/ Raspberry Pis
 
 - Fairness/practicality: no powerful computers
 - Inference time vs model capability
+- Possible: HyperPPO (2023) on quadrotor
 - Target: 440ms on Duke VM (2CPU, 3.6G RAM)
     - $\approx$ 2 Pis
 
@@ -73,6 +74,7 @@ Cloud VMs/ Raspberry Pis
 - Body segment: how long stay
 - Opponent head: relative length
 - Food: how hungry
+- Reward: win 1/ lose -1; round 0.02
 
 <img src="snake_game_screenshot.png" alt="Battlesnake Game Screenshot"
 style="max-height: 40vh;">

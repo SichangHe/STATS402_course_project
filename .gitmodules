@@ -1,3 +1,12 @@
 [submodule "battlesnake-game-types"]
 	path = battlesnake-game-types
 	url = git@github.com:SichangHe/fables-tales--battlesnake-game-types.git
+[submodule "Fool-Yang--AlphaSnake-Zero"]
+	path = AlphaSnake-Zero
+	url = git@github.com:SichangHe/Fool-Yang--AlphaSnake-Zero.git
+[submodule "awslabs--sagemaker-battlesnake-ai"]
+	path = sagemaker-battlesnake-ai
+	url = git@github.com:SichangHe/awslabs--sagemaker-battlesnake-ai.git
+[submodule "wrenger--snork"]
+	path = snork
+	url = git@github.com:SichangHe/wrenger--snork.git

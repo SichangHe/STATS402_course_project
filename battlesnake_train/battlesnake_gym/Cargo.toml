@@ -10,3 +10,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = "0.21"
+rand = "0.8"
+snork = { version = "0.2", path = "../../snork" }

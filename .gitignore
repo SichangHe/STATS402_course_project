@@ -2,7 +2,10 @@
 **.dart_tool/
 **.flutter*
 **.ipynb_checkpoints/
+**.lock
+**.o
 **.pyc
+**.so
 **__pycache__/
 **build/
 **target/

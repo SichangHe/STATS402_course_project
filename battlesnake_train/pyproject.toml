@@ -3,9 +3,9 @@ name = "battlesnake-train"
 version = "0.1.0"
 description = "Add your description here"
 authors = [
-    { name = "Steven Hé (Sīchàng)", email = "sichang.he@dukekunshan.edu.cn" }
+    { name = "Steven Hé (Sīchàng)", email = "sichang.he@dukekunshan.edu.cn" },
 ]
-dependencies = []
+dependencies = ["gymnasium>=0.29.1", "stable-baselines3>=2.3.0"]
 readme = "README.md"
 requires-python = ">= 3.10"
 
@@ -15,7 +15,10 @@ build-backend = "hatchling.build"
 
 [tool.rye]
 managed = true
-dev-dependencies = []
+dev-dependencies = ["ipython>=8.23.0"]
+
+[tool.rye.workspace]
+members = [".", "battlesnake_gym"]
 
 [tool.hatch.metadata]
 allow-direct-references = true

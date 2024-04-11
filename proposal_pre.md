@@ -74,7 +74,7 @@ Cloud VMs/ Raspberry Pis
 - Body segment: how long stay
 - Opponent head: relative length
 - Food: how hungry
-- Reward: win 1/ lose -1; round 0.02
+- Reward: win 1/ lose -1; round 0.002
 
 <img src="snake_game_screenshot.png" alt="Battlesnake Game Screenshot"
 style="max-height: 40vh;">

@@ -1,3 +1,4 @@
+use numpy::ndarray::Array3;
 use pyo3::{exceptions::PyValueError, prelude::*};
 use rand::{rngs::SmallRng, seq::IteratorRandom, Rng, SeedableRng};
 use snork::{
@@ -6,6 +7,12 @@ use snork::{
     grid::CellT,
     simulate::init_game,
 };
+
+const BOARD_SIZE: usize = 11;
+const N_SNAKES: usize = 4;
+
+const PADDED_SIZE: usize = BOARD_SIZE * 2 - 1;
+const N_LAYERS: usize = 10;
 
 #[pyclass]
 #[derive(Clone, Debug)]
@@ -24,21 +31,20 @@ impl SnakeGame {
         Ok(Self {
             game,
             rng,
-            food_count: 4,
+            food_count: N_SNAKES as u16,
         })
     }
 
     fn reset(&mut self) -> PyResult<()> {
         self.game = fresh_game(&mut self.rng);
-        self.food_count = 4;
+        self.food_count = N_SNAKES as u16;
         Ok(())
     }
 
-    fn step(&mut self, actions: [isize; 4]) -> PyResult<()> {
+    fn step(&mut self, actions: [isize; N_SNAKES]) -> PyResult<()> {
         // Based on `snork/src/simulate.rs`.
-        let mut moves = [Direction::Up; 4];
+        let mut moves = [Direction::Up; N_SNAKES];
         for (index, action) in actions.iter().enumerate() {
-            // TODO: Implement rotation.
             moves[index] = match action {
                 0 => Direction::Up,
                 1 => Direction::Down,
@@ -77,13 +83,18 @@ impl SnakeGame {
         todo!()
     }
 
+    fn states(&self) {
+        let mut states = Array3::<f32>::zeros((N_LAYERS, PADDED_SIZE, PADDED_SIZE));
+        todo!()
+    }
+
     fn render(&self) -> PyResult<()> {
         todo!()
     }
 }
 
 fn fresh_game(rng: &mut SmallRng) -> Game {
-    init_game(11, 11, 4, rng)
+    init_game(BOARD_SIZE, BOARD_SIZE, N_SNAKES, rng)
 }
 
 const FOOD_RATE: f64 = 0.15;

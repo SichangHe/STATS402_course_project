@@ -9,6 +9,7 @@ name = "battlesnake_gym"
 crate-type = ["cdylib"]
 
 [dependencies]
+numpy = "0.21.0"
 pyo3 = "0.21"
 rand = "0.8"
 snork = { version = "0.2", path = "../../snork" }

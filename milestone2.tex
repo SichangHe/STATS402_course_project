@@ -42,6 +42,18 @@ Placeholder~\cite{battlesnake}.
     For example, the detailed techniques you adopted to conduct the project. Has your group made any technical route adjustments? This part is essential for the groups whose actual adopted method is different from their milestone report 1. You need to explain the reason for the change.
 }
 
+\subsection{Technical Route Adjustments}
+
+We found that Gymnasium~\cite{farama2024gymnasium}
+does not support multi-agent environments like the ones we have in Battlesnake.
+Therefore,
+we adjusted the environment library choice to be
+Pettingzoo~\cite{terry2021pettingzoo} instead.
+Pettingzoo supports simultaneous-move multi-agent environments via its Parallel
+API\footnote{\url{https://pettingzoo.farama.org/api/parallel/}},
+and can be made compatible with Stable Baselines3~\cite{raffin2024stable}
+using SuperSuit~\cite{SuperSuit}.
+
 \section{Data Preprocessing}
 
 \todo{Demonstrate some initial data preprocessing results if you have.}

@@ -10,3 +10,6 @@
 [submodule "wrenger--snork"]
 	path = snork
 	url = git@github.com:SichangHe/wrenger--snork.git
+[submodule "sumo-rl"]
+	path = sumo-rl
+	url = git@github.com:SichangHe/LucasAlegre--sumo-rl.git

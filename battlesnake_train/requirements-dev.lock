@@ -32,7 +32,9 @@ fsspec==2024.3.1
     # via torch
 gymnasium==0.29.1
     # via battlesnake-train
+    # via pettingzoo
     # via stable-baselines3
+    # via supersuit
 ipython==8.23.0
 jedi==0.19.1
     # via ipython
@@ -55,13 +57,18 @@ numpy==1.26.4
     # via gymnasium
     # via matplotlib
     # via pandas
+    # via pettingzoo
     # via stable-baselines3
+    # via supersuit
+    # via tinyscaler
 packaging==24.0
     # via matplotlib
 pandas==2.2.2
     # via stable-baselines3
 parso==0.8.4
     # via jedi
+pettingzoo==1.24.3
+    # via battlesnake-gym
 pexpect==4.9.0
     # via ipython
 pillow==10.3.0
@@ -72,6 +79,8 @@ ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.2
     # via stack-data
+pygame==2.5.2
+    # via battlesnake-gym
 pygments==2.17.2
     # via ipython
 pyparsing==3.1.2
@@ -88,8 +97,12 @@ stable-baselines3==2.3.0
     # via battlesnake-train
 stack-data==0.6.3
     # via ipython
+supersuit==3.9.2
+    # via battlesnake-gym
 sympy==1.12
     # via torch
+tinyscaler==1.2.7
+    # via supersuit
 torch==2.2.2
     # via stable-baselines3
 traitlets==5.14.2
@@ -97,6 +110,7 @@ traitlets==5.14.2
     # via matplotlib-inline
 typing-extensions==4.11.0
     # via gymnasium
+    # via ipython
     # via torch
 tzdata==2024.1
     # via pandas

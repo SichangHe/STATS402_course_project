@@ -1,6 +1,7 @@
 from typing import Any, Final
 
 import numpy as np
+import supersuit as ss
 from gymnasium import spaces
 from pettingzoo import ParallelEnv
 
@@ -22,6 +23,7 @@ class BattlesnakeEnv(ParallelEnv):
         "render_modes": [],
     }
 
+    # TODO: Allow training with older self.
     def __init__(self):
         self.snake_game = SnakeGame()
 
@@ -76,4 +78,12 @@ class BattlesnakeEnv(ParallelEnv):
         return {i: {} for i in range(N_SNAKES)}
 
 
-__all__ = ["hello"]
+def make_battlesnake_env():
+    env = BattlesnakeEnv()
+    env = ss.black_death_v3(env)
+    env = ss.pettingzoo_env_to_vec_env_v1(env)
+    env = ss.concat_vec_envs_v1(env, 8, base_class="stable_baselines3")
+    return env
+
+
+__all__ = ["hello", "make_battlesnake_env"]

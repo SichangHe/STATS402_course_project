@@ -54,6 +54,19 @@ API\footnote{\url{https://pettingzoo.farama.org/api/parallel/}},
 and can be made compatible with Stable Baselines3~\cite{raffin2024stable}
 using SuperSuit~\cite{SuperSuit}.
 
+\subsection{Implementation Progress}
+
+The Pettingzoo environment is implemented based on the feature extraction
+described in the proposal,
+using the game simulation implementation in~\cite{wrenger2024rusty}.
+
+Notably, the features are nine 21x21 layers instead of ten,
+as incorrectly stated in the proposal.
+
+Implementing the feature extraction was challenging,
+mainly because a large number of indexing is used to construct the feature
+matrix layers.
+
 \section{Data Preprocessing}
 
 \todo{Demonstrate some initial data preprocessing results if you have.}

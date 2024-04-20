@@ -10,6 +10,12 @@ from battlesnake_gym._lowlevel import SnakeGame, hello
 BOARD_SIZE: Final = 11
 N_SNAKES: Final = 4
 
+# Clockwise, opposite to `np.rot90`.
+UP: Final = 0
+RIGHT: Final = 1
+DOWN: Final = 2
+LEFT: Final = 3
+
 PADDED_SIZE: Final = BOARD_SIZE * 2 - 1
 N_LAYERS: Final = 10
 
@@ -69,8 +75,11 @@ class BattlesnakeEnv(ParallelEnv):
         return ACTION_SPACE
 
     def _observations(self):
-        # TODO: Get from self.game.
-        return {i: np.zeros((1, 1), dtype=np.float32) for i in range(N_SNAKES)}
+        states, snake_facings = self.snake_game.states()
+        return {
+            i: np.rot90(state, k=facing)
+            for i, (state, facing) in enumerate(zip(states, snake_facings))
+        }
 
     def _make_infos(self) -> dict[int, dict[str, Any]]:
         return {i: {} for i in range(N_SNAKES)}

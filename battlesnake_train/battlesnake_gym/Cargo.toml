@@ -9,7 +9,12 @@ name = "battlesnake_gym"
 crate-type = ["cdylib"]
 
 [dependencies]
+itertools = "0.12.1"
 numpy = "0.21.0"
 pyo3 = "0.21"
 rand = "0.8"
 snork = { version = "0.2", path = "../../snork" }
+
+[profile.release]
+debug = true
+opt-level = 2

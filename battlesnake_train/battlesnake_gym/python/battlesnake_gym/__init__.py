@@ -44,13 +44,11 @@ class BattlesnakeEnv(ParallelEnv):
 
     # override
     def step(self, actions: dict[int, int]):
-        # TODO: Implement.
         actions_converted = [actions[i] for i in range(N_SNAKES)]
-        # TODO: Use result.
-        _ = self.snake_game.step(actions_converted)
+        raw_rewards, raw_terminations = self.snake_game.step(actions_converted)
         infos = self._make_infos()
-        rewards = {i: 0.0 for i in range(N_SNAKES)}
-        terminations = {i: False for i in range(N_SNAKES)}
+        rewards = {i: raw_rewards[i] for i in range(N_SNAKES)}
+        terminations = {i: raw_terminations[i] for i in range(N_SNAKES)}
         truncations = {i: False for i in range(N_SNAKES)}
         observations = self._observations()
         return observations, rewards, terminations, truncations, infos

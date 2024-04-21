@@ -132,6 +132,12 @@ the MLP has two hidden layers of size 64 with ReLU activation.
 Training the model on an M1 MacBook for 1,000,000 steps took 8 minutes 37
 seconds, while leveraging most of the CPU cores.
 
+We implemented the \textsf{render} method on the environment to visualize the game.
+The implementation produces ANSI colored text-based information on both the game
+board and each agent's health.
+By repeatedly calling the model to predict the next actions,
+a terminal-based animation is created for ease of manual inspection.
+
 The initial training results were suspicious. For example,
 as shown in Fig.~\ref{fig:render},
 the agents controlled by the MLP model are not even able to avoid colliding with
@@ -145,6 +151,9 @@ not working properly after the wrapping with SuperSuit~\cite{SuperSuit}.
     \includegraphics[width=0.4\linewidth]{game_render_eg.png}\quad
     \includegraphics[width=0.4\linewidth]{game_render_eg1.png}
     \caption{ANSI rendering of the game simulation for debugging purposes.
+        Dots represent empty spaces, and the letter \texttt{o} represents food.
+        Numbers in the grid represent the index of the snake.
+        Snake body sections are represented by arrows based on their facing.
         The right figure shows state of the game board after each snake in the
         left figure took an action.
     }
@@ -172,8 +181,32 @@ a more sophisticated model.
     \label{fig:render2}
 \end{figure}
 
+We also inspected the behavior of a model trained for 100,000 steps.
+This model does not yet seem to be able to avoid colliding with walls.
+After training for 1,000,000 steps, the model is able to avoid walls by
+circling the grid in a clockwise manner,
+opposite to the previous case.
+Therefore,
+it seems that the model needs more training steps to learn proper behaviors,
+and an easily reachable local optimum is circling the grid.
 
 \section{Plan for the Next Two Weeks}
+
+There are three major concerns for the next two weeks. First,
+the agents currently only train on the environment with the MLP policy.
+A more sophisticated policy,
+at least involving a convolutional neural network (CNN),
+needs to be designed and tested,
+so that it both is powerful enough and can finish inferencing within the time
+limit set in the proposal~\cite{proposal}. Second,
+the agents currently only train with self-play.
+Additional workarounds are needed to enable the agents to sometimes train with
+older versions of itself.
+Exactly how this can be done with Stable Baselines3~\cite{raffin2024stable}
+is still under our investigation. Third,
+the agents currently only train for very few steps.
+We will set up a more computationally-powerful training environment to train the
+agents for millions of more steps.
 
 \instruction{Maximum 6 pages}
 

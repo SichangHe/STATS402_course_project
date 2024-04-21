@@ -204,12 +204,12 @@ fn sort_snakes(game: &Game) -> [usize; N_SNAKES] {
     let mut snakes: Vec<_> = game
         .snakes
         .iter()
-        .map(|snake| (snake.body.len(), snake.health))
         .enumerate()
+        .map(|(i, snake)| (snake.body.len(), snake.health, i))
         .collect();
     snakes.sort_unstable();
     let mut order = [0; N_SNAKES];
-    for (i, (snake_index, _)) in snakes.iter().enumerate() {
+    for (i, (_, _, snake_index)) in snakes.iter().enumerate() {
         order[i] = *snake_index;
     }
     order

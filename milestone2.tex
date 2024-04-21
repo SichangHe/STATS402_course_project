@@ -7,8 +7,8 @@
 \usepackage{xcolor}
     \newcommand{\todo}[1]{\textcolor{red}{[ #1 ]}}
     \newcommand{\instruction}[1]{\textcolor{orange}{#1}}
-    % \renewcommand{\todo}[1]{} % Uncomment to hide todos.
-    % \renewcommand{\instruction}[1]{} % Uncomment to hide instructions.
+    \renewcommand{\todo}[1]{} % Uncomment to hide todos.
+    \renewcommand{\instruction}[1]{} % Uncomment to hide instructions.
 
 \newcommand{\hidden}[1]{}
 
@@ -37,7 +37,7 @@
 This report presents the progress made in the development of a
 resource-constrained deep reinforcement learning model for the
 Battlesnake~\cite{battlesnake} competition. The key adjustments,
-challenges encountered, and initial results are discussed.
+challenges encountered, initial results, and future plan are discussed.
 
 \section{Current Status}
 
@@ -163,6 +163,16 @@ wrapping with SuperSuit~\cite{SuperSuit}.
     \label{fig:render}
 \end{figure}
 
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\linewidth]{game_render_eg2.png}\quad
+    \includegraphics[width=0.4\linewidth]{game_render_eg3.png}
+    \caption{ANSI rendering of the game simulation after removing return values
+        for dead agents. The right figure is one step after the left figure.
+    }
+    \label{fig:render2}
+\end{figure}
+
 After removing entirely the rewards and other parameters for the dead agents,
 the results are much more reasonable. Based on manual inspection,
 the agents are now able to avoid walls,
@@ -174,16 +184,6 @@ which is likely due to the lack of direct rewards for eating food. Overall,
 the fact that the agents are able to avoid walls is promising,
 indicating that they should be able to learn more complex strategies with a more
 sophisticated model.
-
-\begin{figure}
-    \centering
-    \includegraphics[width=0.4\linewidth]{game_render_eg2.png}\quad
-    \includegraphics[width=0.4\linewidth]{game_render_eg3.png}
-    \caption{ANSI rendering of the game simulation after removing return values
-        for dead agents. The right figure is one step after the left figure.
-    }
-    \label{fig:render2}
-\end{figure}
 
 We also inspected the behavior of a model trained for 100,000 steps.
 This model does not yet seem to be able to avoid colliding with walls.

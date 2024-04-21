@@ -60,6 +60,8 @@ using SuperSuit~\cite{SuperSuit}.
 The Pettingzoo environment has been implemented based on the feature extraction
 described in the
 proposal\footnote{\url{https://github.com/SichangHe/STATS402_course_project/tree/main/battlesnake_train/battlesnake_gym}}.
+This environment has been wrapped using SuperSuit and tested against Stable Baselines3 APIs,
+and appears to be working as expected.
 
 Game simulation is powered by the implementation in~\cite{wrenger2024rusty},
 which leads to two challenges. First, the game simulation is written in Rust,
@@ -120,6 +122,32 @@ and the facing can be directly used for the rotation in Numpy mentioned above.
 \section{Data Preprocessing}
 
 \todo{Demonstrate some initial data preprocessing results if you have.}
+
+We tested the environment with the built-in multilayer perceptron (MLP)
+policy from Stable Baselines3~\cite{raffin2024stable}.
+For both the actor and the critic,
+the MLP has two hidden layers of size 64 with ReLU activation.
+Training the model on an M1 MacBook for 1,000,000 steps took 8 minutes 37
+seconds, while leveraging most of the CPU cores.
+
+The initial training results are not satisfactory. For example,
+as shown in Fig.~\ref{fig:render},
+the agents controlled by the MLP model are not even able to avoid colliding with
+the walls. Looking into several outputs of \textsf{step}
+method calls on the wrapped environment, we discovered that the \textsf{done}
+fields are always \textsf{False}, raising suspicions that the environment was
+not working properly after the wrapping with SuperSuit~\cite{SuperSuit}.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\linewidth]{game_render_eg.png}\quad
+    \includegraphics[width=0.4\linewidth]{game_render_eg1.png}
+    \caption{ANSI rendering of the game simulation for debugging purposes.
+        The right figure shows state of the game board after each snake in the
+        left figure took an action.
+    }
+    \label{fig:render}
+\end{figure}
 
 \section{Plan for the Next Two Weeks}
 

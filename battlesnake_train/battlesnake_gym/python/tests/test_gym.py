@@ -15,6 +15,7 @@ from stable_baselines3.common.env_checker import (
     _is_goal_env,
     _is_numpy_array_space,
 )
+from supersuit.vector import ConcatVecEnv
 
 from battlesnake_gym import BattlesnakeEnv, make_battlesnake_env
 
@@ -26,13 +27,13 @@ def test_parallel_api() -> None:
 
 def test_sb3_env() -> None:
     env = make_battlesnake_env().venv
+    assert isinstance(env, ConcatVecEnv), type(env)
     check_vec_env(env, skip_render_check=False)
 
 
 def check_vec_env(env, warn: bool = True, skip_render_check: bool = True) -> None:
     """
-    Copied from `stable_baselines3/common/env_checker.py` to work around
-    not inheriting from `gymnasium.Env`.
+    Copied from `stable_baselines3/common/env_checker.py`.
 
     Check that an environment follows Gym API.
     This is particularly useful when using a custom environment.
@@ -47,9 +48,9 @@ def check_vec_env(env, warn: bool = True, skip_render_check: bool = True) -> Non
     :param skip_render_check: Whether to skip the checks for the render method.
         True by default (useful for the CI)
     """
-    # assert isinstance(
-    #     env, gym.Env
-    # ), "Your environment must inherit from the gymnasium.Env class cf. https://gymnasium.farama.org/api/env/"
+    assert isinstance(
+        env, Env
+    ), "Your environment must inherit from the gymnasium.Env class cf. https://gymnasium.farama.org/api/env/"
 
     # ============= Check the spaces (observation and action) ================
     _check_spaces(env)
@@ -121,7 +122,7 @@ def check_vec_env(env, warn: bool = True, skip_render_check: bool = True) -> Non
             action_space = env.action_space
 
             def reset(self, seed=None):  # type: ignore
-                observations, infos = env.reset(seed)
+                observations, infos = env.reset(seed)  # type: ignore
                 return observations[0], infos[0]
 
         _check_nan(FirstElem())
@@ -181,7 +182,7 @@ def _check_returned_values(
     )
 
     # Unpack
-    obs, reward, _, _, info = data
+    obs, reward, terminated, truncated, info = data
 
     if isinstance(observation_space, spaces.Dict):
         assert isinstance(
@@ -216,8 +217,12 @@ def _check_returned_values(
     assert isinstance(
         reward[0], (float, int, np.floating)
     ), "The reward returned by `step()` must be a float"
-    # assert isinstance(terminated[0], bool), "The `terminated` signal must be a boolean"
-    # assert isinstance(truncated[0], bool), "The `truncated` signal must be a boolean"
+    assert isinstance(
+        terminated[0], (bool, np.unsignedinteger)
+    ), "The `terminated` signal must be a boolean"
+    assert isinstance(
+        truncated[0], (bool, np.unsignedinteger)
+    ), "The `truncated` signal must be a boolean"
     assert isinstance(
         info[0], dict
     ), "The `info` returned by `step()` must be a python dictionary"

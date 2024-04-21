@@ -4,6 +4,7 @@ import numpy as np
 import supersuit as ss
 from gymnasium import spaces
 from pettingzoo import ParallelEnv
+from supersuit.multiagent_wrappers.black_death import black_death_par
 from supersuit.vector.sb3_vector_wrapper import SB3VecEnvWrapper
 
 from battlesnake_gym._lowlevel import SnakeGame, hello
@@ -95,23 +96,27 @@ def convert_action(action: int | None) -> int:
 
 
 def make_battlesnake_env() -> SB3VecEnvWrapper:
-    env = BattlesnakeEnv()
-    env = ss.black_death_v3(env)
-    env = ss.pettingzoo_env_to_vec_env_v1(env)
+    battlesnake_env = BattlesnakeEnv()
+    black_death_env: black_death_par = ss.black_death_v3(battlesnake_env)  # type: ignore
+    markov_vector_env = ss.pettingzoo_env_to_vec_env_v1(black_death_env)
+
     # Work around nonsense in SuperSuit.
-    env.seed = placeholder_seed  # type: ignore
-    env.render = replacement_render
-    env = ss.concat_vec_envs_v1(env, 4, base_class="stable_baselines3")
-    return env
+    markov_vector_env.seed = placeholder_seed  # type: ignore
+    sb3_vec_env_wrapper = ss.concat_vec_envs_v1(
+        markov_vector_env, 4, base_class="stable_baselines3"
+    )
+    assert isinstance(sb3_vec_env_wrapper, SB3VecEnvWrapper)
+
+    def replacement_render(mode=None):
+        _ = mode
+        return sb3_vec_env_wrapper.venv.render()
+
+    sb3_vec_env_wrapper.render = replacement_render
+    return sb3_vec_env_wrapper
 
 
 def placeholder_seed(env, seed=None):
     _ = env, seed
-
-
-def replacement_render(env, mode=None):
-    _ = mode
-    return env.venv.render()
 
 
 __all__ = ["hello", "make_battlesnake_env"]

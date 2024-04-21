@@ -15,7 +15,10 @@ build-backend = "hatchling.build"
 
 [tool.rye]
 managed = true
-dev-dependencies = ["ipython>=8.23.0"]
+dev-dependencies = [
+    "ipython>=8.23.0",
+    "pytest>=8.1.1",
+]
 
 [tool.rye.workspace]
 members = [".", "battlesnake_gym"]

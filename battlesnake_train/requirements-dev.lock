@@ -35,6 +35,8 @@ gymnasium==0.29.1
     # via pettingzoo
     # via stable-baselines3
     # via supersuit
+iniconfig==2.0.0
+    # via pytest
 ipython==8.23.0
 jedi==0.19.1
     # via ipython
@@ -63,6 +65,7 @@ numpy==1.26.4
     # via tinyscaler
 packaging==24.0
     # via matplotlib
+    # via pytest
 pandas==2.2.2
     # via stable-baselines3
 parso==0.8.4
@@ -73,6 +76,8 @@ pexpect==4.9.0
     # via ipython
 pillow==10.3.0
     # via matplotlib
+pluggy==1.5.0
+    # via pytest
 prompt-toolkit==3.0.43
     # via ipython
 ptyprocess==0.7.0
@@ -85,6 +90,7 @@ pygments==2.17.2
     # via ipython
 pyparsing==3.1.2
     # via matplotlib
+pytest==8.1.1
 python-dateutil==2.9.0.post0
     # via matplotlib
     # via pandas

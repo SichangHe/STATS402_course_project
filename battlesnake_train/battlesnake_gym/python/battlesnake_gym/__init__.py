@@ -32,6 +32,8 @@ class BattlesnakeEnv(ParallelEnv):
     # TODO: Allow training with older self.
     def __init__(self):
         self.snake_game = SnakeGame()
+        self.possible_agents = list(range(N_SNAKES))
+        self.agents = list(range(N_SNAKES))
 
     # override
     def reset(
@@ -39,21 +41,21 @@ class BattlesnakeEnv(ParallelEnv):
         seed: int | None = None,
         options: dict[str, Any] | None = None,
     ):
-        super().reset(seed=seed)
+        self.agents = list(range(N_SNAKES))
         # TODO: Use seed and options.
-        _ = options
+        _ = seed, options
         self.snake_game.reset()
-        # TODO: Implement.
         observations = self._observations()
         infos = self._make_infos()
         return observations, infos
 
     # override
     def step(self, actions: dict[int, int]):
-        actions_converted = [actions[i] for i in range(N_SNAKES)]
+        actions_converted = [actions.get(i, 0) for i in range(N_SNAKES)]
         raw_rewards, raw_terminations = self.snake_game.step(actions_converted)
         infos = self._make_infos()
         rewards = {i: raw_rewards[i] for i in range(N_SNAKES)}
+        self.agents = [i for i in self.agents if not raw_terminations[i]]
         terminations = {i: raw_terminations[i] for i in range(N_SNAKES)}
         truncations = {i: False for i in range(N_SNAKES)}
         observations = self._observations()

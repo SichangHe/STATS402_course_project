@@ -89,7 +89,7 @@ impl SnakeGame {
         // Based on `snork/src/game.rs`.
         let mut n_alive = 0usize;
         let mut rewards = [0.0; N_SNAKES];
-        let mut terminations = [false; N_SNAKES];
+        let mut terminations = [true; N_SNAKES];
         let mut survivor = 0;
         for (i, snake) in self.game.snakes.iter().enumerate() {
             if snake.alive() {
@@ -97,10 +97,10 @@ impl SnakeGame {
                 n_alive += 1;
                 survivor = i;
                 rewards[i] = SURVIVE_ROUND_REWARD;
+                terminations[i] = false;
             } else if alive_before[i] {
                 // Died this round.
                 rewards[i] = LOSE_REWARD;
-                terminations[i] = true;
             } // Else: already dead last round.
         }
         match n_alive {

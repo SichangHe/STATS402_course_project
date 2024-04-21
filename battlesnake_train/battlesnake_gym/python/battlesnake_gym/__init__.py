@@ -57,11 +57,11 @@ class BattlesnakeEnv(ParallelEnv):
         actions_converted = [convert_action(actions.get(i)) for i in range(N_SNAKES)]
         raw_rewards, raw_terminations = self.snake_game.step(actions_converted)
         infos = self._make_infos()
-        rewards = {i: raw_rewards[i] for i in range(N_SNAKES)}
-        self.agents = [i for i in self.agents if not raw_terminations[i]]
-        terminations = {i: raw_terminations[i] for i in range(N_SNAKES)}
-        truncations = {i: False for i in range(N_SNAKES)}
+        rewards = {i: raw_rewards[i] for i in self.agents}
+        terminations = {i: raw_terminations[i] for i in self.agents}
+        truncations = {i: False for i in self.agents}
         observations = self._observations()
+        self.agents = [i for i in self.agents if not raw_terminations[i]]
         return observations, rewards, terminations, truncations, infos
 
     # override
@@ -83,10 +83,11 @@ class BattlesnakeEnv(ParallelEnv):
         return {
             i: np.rot90(state, k=facing, axes=(1, 2))
             for i, (state, facing) in enumerate(zip(states, snake_facings))
+            if i in self.agents
         }
 
     def _make_infos(self) -> dict[int, dict[str, Any]]:
-        return {i: {} for i in range(N_SNAKES)}
+        return {i: {} for i in self.agents}
 
 
 def convert_action(action: int | None) -> int:

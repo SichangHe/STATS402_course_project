@@ -60,8 +60,10 @@ using SuperSuit~\cite{SuperSuit}.
 The Pettingzoo environment has been implemented based on the feature extraction
 described in the
 proposal\footnote{\url{https://github.com/SichangHe/STATS402_course_project/tree/main/battlesnake_train/battlesnake_gym}}.
-This environment has been wrapped using SuperSuit and tested against Stable Baselines3 APIs,
-and appears to be working as expected.
+This environment has been wrapped using SuperSuit and tested against Stable
+Baselines3 APIs,
+and appears to be working properly as a Stable Baselines3 environment in our API
+unit testing.
 
 Game simulation is powered by the implementation in~\cite{wrenger2024rusty},
 which leads to two challenges. First, the game simulation is written in Rust,
@@ -109,7 +111,7 @@ the Rust implementation also converts relative actions input from the Python
 side into absolute actions for the game simulation. For example,
 if an agent's head is facing ``left'' and the relative action they output is
 ``right'',
-our implementation converts action to ``up'' before sending it to the game
+our implementation converts the action to ``up'' before sending it to the game
 simulation.
 This facing detection is based on the relative position of the agent's head and
 second body part. The four orientations ``up'', ``right'', ``down'',
@@ -130,7 +132,7 @@ the MLP has two hidden layers of size 64 with ReLU activation.
 Training the model on an M1 MacBook for 1,000,000 steps took 8 minutes 37
 seconds, while leveraging most of the CPU cores.
 
-The initial training results are not satisfactory. For example,
+The initial training results were suspicious. For example,
 as shown in Fig.~\ref{fig:render},
 the agents controlled by the MLP model are not even able to avoid colliding with
 the walls. Looking into several outputs of \textsf{step}
@@ -148,6 +150,28 @@ not working properly after the wrapping with SuperSuit~\cite{SuperSuit}.
     }
     \label{fig:render}
 \end{figure}
+
+After removing entirely the rewards and other parameters for the dead agents,
+the results are much more reasonable. Based on manual inspection,
+the agents are now able to avoid walls,
+interestingly by circling the grid in a counter-clockwise manner, as demonstrated in Fig.~\ref{fig:render2}. However,
+they still do not seem to be able to avoid colliding with each other.
+The agents also seem to be agnostic about food,
+which is likely due to the lack of direct rewards for eating food.
+Overall, the fact that the agents are able to avoid walls is promising,
+indicating that they should be able to learn more complex strategies with
+a more sophisticated model.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\linewidth]{game_render_eg2.png}\quad
+    \includegraphics[width=0.4\linewidth]{game_render_eg3.png}
+    \caption{ANSI rendering of the game simulation after removing return values
+        for dead agents. The right figure is one step after the left figure.
+    }
+    \label{fig:render2}
+\end{figure}
+
 
 \section{Plan for the Next Two Weeks}
 

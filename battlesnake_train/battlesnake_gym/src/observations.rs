@@ -4,9 +4,8 @@ pub fn states(game: &Game) -> (Vec<Array3<f64>>, Vec<isize>) {
     let body_layers = body_layers(game);
     let snake_order = sort_snakes(game);
     let head_values = head_values(game, &snake_order);
-    eprintln!(
-        "Body layers: {body_layers:?}\nSnake order: {snake_order:?}\nHead values: {head_values:?}"
-    );
+    trace!(?body_layers);
+    debug!(?snake_order, ?head_values);
 
     let states = (0..N_SNAKES)
         .map(|snake_index| state(game, snake_index, &body_layers, &snake_order, &head_values))
@@ -90,10 +89,7 @@ fn state(
     } else {
         return state;
     };
-    eprintln!(
-        "Your index: {}, Your head: ({}, {})",
-        you_index, head_x, head_y
-    );
+    debug!(you_index, head_x, head_y);
     // Based on `make_state` in `AlphaSnake-Zero/code/utils/game.py`.
     let dx = |x| x + (BOARD_SIZE - 1) - head_x;
     let dy = |y| y + (BOARD_SIZE - 1) - head_y;

@@ -13,6 +13,8 @@ use snork::{
     grid::CellT,
     simulate::init_game,
 };
+use tracing::*;
+use tracing_subscriber::EnvFilter;
 
 mod observations;
 
@@ -190,6 +192,14 @@ fn hello() -> PyResult<String> {
 /// A Python module implemented in Rust.
 #[pymodule]
 fn _lowlevel(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    _ = tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::builder()
+                .with_env_var("LOGLEVEL")
+                .with_default_directive(Level::INFO.into())
+                .from_env_lossy(),
+        )
+        .try_init();
     m.add_function(wrap_pyfunction!(hello, m)?)?;
     m.add_class::<SnakeGame>()?;
     Ok(())

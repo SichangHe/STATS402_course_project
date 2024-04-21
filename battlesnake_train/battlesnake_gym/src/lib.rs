@@ -165,7 +165,7 @@ fn snake_facing(snake: &Snake) -> Option<isize> {
 /// 0: Up, 1: Right, 2: Down, 3: Left.
 fn snake_true_move(snake: &Snake, relative_move: isize) -> isize {
     let facing = snake_facing(snake).unwrap_or(0);
-    (relative_move + facing) % 4
+    (relative_move + facing).rem_euclid(4)
 }
 
 fn states(game: &Game) -> (Vec<Array3<f64>>, Vec<isize>) {

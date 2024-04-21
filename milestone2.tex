@@ -44,9 +44,10 @@ Placeholder~\cite{battlesnake}.
 
 \subsection{Technical Route Adjustments}
 
-We found that Gymnasium~\cite{farama2024gymnasium}
-does not support multi-agent environments like the ones we have in Battlesnake.
-Therefore,
+Although we planned to use the Gymnasium environment
+library~\cite{farama2024gymnasium} in the proposal~\cite{proposal},
+we found that it does not support multi-agent environments like the ones we have
+in Battlesnake. Therefore,
 we adjusted the environment library choice to be
 Pettingzoo~\cite{terry2021pettingzoo} instead.
 Pettingzoo supports simultaneous-move multi-agent environments via its Parallel
@@ -54,18 +55,67 @@ API\footnote{\url{https://pettingzoo.farama.org/api/parallel/}},
 and can be made compatible with Stable Baselines3~\cite{raffin2024stable}
 using SuperSuit~\cite{SuperSuit}.
 
-\subsection{Implementation Progress}
+\subsection{Feature Extraction Implementation }
 
-The Pettingzoo environment is implemented based on the feature extraction
-described in the proposal,
-using the game simulation implementation in~\cite{wrenger2024rusty}.
+The Pettingzoo environment has been implemented based on the feature extraction
+described in the
+proposal\footnote{\url{https://github.com/SichangHe/STATS402_course_project/tree/main/battlesnake_train/battlesnake_gym}}.
 
-Notably, the features are nine 21x21 layers instead of ten,
-as incorrectly stated in the proposal.
+Game simulation is powered by the implementation in~\cite{wrenger2024rusty},
+which leads to two challenges. First, the game simulation is written in Rust,
+while the Pettingzoo environment needs to be in Python. To bridge this gap,
+we leverage a mature Rust-Python interoperability solution,
+the PyO3 library~\cite{pyo3} and the build tool Maturin~\cite{maturin}.
+A wrapper Rust struct is created and registered as a Python class to represent a
+Battlesnake game,
+and provide methods for the Pettingzoo environment to interact with.
+Another Python class (\textsf{BattlesnakeEnv})
+then wraps the Rust struct and implements the Pettingzoo Parallel API. Second,
+the game simulation only presents the original board state,
+without any transformations based on each snake agent's position or orientation
+like we had planned. Therefore,
+we referred to the feature extraction implementation
+in~\cite{siddiqui2020multiagent},
+and reimplemented our similar approach in Rust.
 
-Implementing the feature extraction was challenging,
-mainly because a large number of indexing is used to construct the feature
-matrix layers.
+To be more specific,
+the feature matrix of $\mathbb R^{9\times21\times21}$ is constructed in Rust and
+converted into a Numpy array~\cite{harris2020array}
+to suit the methods in \textsf{BattlesnakeEnv}. Notably,
+the features are nine layers instead of ten,
+as incorrectly stated in the proposal; layer 0 represents walls,
+layers 1 represents the agent's body, layer 2, 4,
+6 represent the head of each opponent snake, layer 3, 5,
+7 represent the body of each opponent snake, and layer 8 represents food.
+To implement our proposed feature extraction,
+we first construct three intermediate values:
+each snake's body layer on the original board,
+the order of the snakes based on their length and health,
+and the head values of ordered opponent snakes from each snake's perspective.
+We then calculate the full feature matrix for each snake's observation without
+the rotation, and the facing of each snake. Finally,
+these two values are sent to Python,
+where we conveniently construct the final feature matrix by rotating the feature
+matrix in Numpy according to the snake's facing. In this process,
+a large number of indexing is used to construct the feature matrix,
+causing difficulties to debug. Though,
+we tested the implementation by inspecting the intermediate values,
+confirming its correctness.
+
+Besides feature extraction,
+the Rust implementation also converts relative actions input from the Python
+side into absolute actions for the game simulation. For example,
+if an agent's head is facing ``left'' and the relative action they output is
+``right'',
+our implementation converts action to ``up'' before sending it to the game
+simulation.
+This facing detection is based on the relative position of the agent's head and
+second body part. The four orientations ``up'', ``right'', ``down'',
+and ``left'' are represented as integers 0, 1, 2, 3, respectively,
+in a clockwise order.
+Both the action input $A_{relative}$ and the facing detection $F$ use this representation,
+so the absolute action $A_{absolute}=(A_{relative}+F)\bmod 4$,
+and the facing can be directly used for the rotation in Numpy mentioned above.
 
 \section{Data Preprocessing}
 

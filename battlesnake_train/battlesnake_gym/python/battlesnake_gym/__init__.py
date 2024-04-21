@@ -98,13 +98,20 @@ def make_battlesnake_env() -> SB3VecEnvWrapper:
     env = BattlesnakeEnv()
     env = ss.black_death_v3(env)
     env = ss.pettingzoo_env_to_vec_env_v1(env)
-    env.seed = placeholder_seed  # Work around nonsense in SuperSuit.
-    env = ss.concat_vec_envs_v1(env, 8, base_class="stable_baselines3")
+    # Work around nonsense in SuperSuit.
+    env.seed = placeholder_seed  # type: ignore
+    env.render = replacement_render
+    env = ss.concat_vec_envs_v1(env, 4, base_class="stable_baselines3")
     return env
 
 
 def placeholder_seed(env, seed=None):
     _ = env, seed
+
+
+def replacement_render(env, mode=None):
+    _ = mode
+    return env.venv.render()
 
 
 __all__ = ["hello", "make_battlesnake_env"]

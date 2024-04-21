@@ -25,8 +25,8 @@ ACTION_SPACE: Final = spaces.Discrete(4)
 
 class BattlesnakeEnv(ParallelEnv):
     metadata = {
-        # TODO: render_modes
-        "render_modes": [],
+        "name": "Battlesnake",
+        "render_modes": ["ansi"],
     }
 
     # TODO: Allow training with older self.
@@ -60,9 +60,8 @@ class BattlesnakeEnv(ParallelEnv):
         return observations, rewards, terminations, truncations, infos
 
     # override
-    def render(self):
-        # TODO: Implement.
-        pass
+    def render(self) -> str:
+        return self.snake_game.render()
 
     # override
     def observation_space(self, agent: int):

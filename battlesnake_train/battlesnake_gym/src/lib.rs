@@ -135,8 +135,8 @@ impl SnakeGame {
         Ok((states, snake_facings))
     }
 
-    fn render(&self) -> PyResult<()> {
-        todo!()
+    fn render(&self) -> PyResult<String> {
+        Ok(format!("{:?}", self.game))
     }
 
     fn snake_true_move(&self, snake_index: usize, relative_move: isize) -> PyResult<isize> {

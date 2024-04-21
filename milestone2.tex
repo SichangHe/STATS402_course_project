@@ -34,7 +34,10 @@
 
 \subparagraph{Abstract}
 
-Placeholder~\cite{battlesnake}.
+This report presents the progress made in the development of a
+resource-constrained deep reinforcement learning model for the
+Battlesnake~\cite{battlesnake} competition. The key adjustments,
+challenges encountered, and initial results are discussed.
 
 \section{Current Status}
 
@@ -48,14 +51,14 @@ Although we planned to use the Gymnasium environment
 library~\cite{farama2024gymnasium} in the proposal~\cite{proposal},
 we found that it does not support multi-agent environments like the ones we have
 in Battlesnake. Therefore,
-we adjusted the environment library choice to be
+we adjusted the environment library choice to
 Pettingzoo~\cite{terry2021pettingzoo} instead.
 Pettingzoo supports simultaneous-move multi-agent environments via its Parallel
 API\footnote{\url{https://pettingzoo.farama.org/api/parallel/}},
 and can be made compatible with Stable Baselines3~\cite{raffin2024stable}
 using SuperSuit~\cite{SuperSuit}.
 
-\subsection{Feature Extraction Implementation }
+\subsection{Feature Extraction Implementation}
 
 The Pettingzoo environment has been implemented based on the feature extraction
 described in the
@@ -117,13 +120,11 @@ This facing detection is based on the relative position of the agent's head and
 second body part. The four orientations ``up'', ``right'', ``down'',
 and ``left'' are represented as integers 0, 1, 2, 3, respectively,
 in a clockwise order.
-Both the action input $A_{relative}$ and the facing detection $F$ use this representation,
-so the absolute action $A_{absolute}=(A_{relative}+F)\bmod 4$,
+Both the action input $A_{relative}$ and the facing detection $F$ use this
+representation, so the absolute action $A_{absolute}=(A_{relative}+F)\bmod 4$,
 and the facing can be directly used for the rotation in Numpy mentioned above.
 
 \section{Data Preprocessing}
-
-\todo{Demonstrate some initial data preprocessing results if you have.}
 
 We tested the environment with the built-in multilayer perceptron (MLP)
 policy from Stable Baselines3~\cite{raffin2024stable}.
@@ -132,7 +133,8 @@ the MLP has two hidden layers of size 64 with ReLU activation.
 Training the model on an M1 MacBook for 1,000,000 steps took 8 minutes 37
 seconds, while leveraging most of the CPU cores.
 
-We implemented the \textsf{render} method on the environment to visualize the game.
+We implemented the \textsf{render}
+method on the environment to visualize the game.
 The implementation produces ANSI colored text-based information on both the game
 board and each agent's health.
 By repeatedly calling the model to predict the next actions,
@@ -143,8 +145,9 @@ as shown in Fig.~\ref{fig:render},
 the agents controlled by the MLP model are not even able to avoid colliding with
 the walls. Looking into several outputs of \textsf{step}
 method calls on the wrapped environment, we discovered that the \textsf{done}
-fields are always \textsf{False}, raising suspicions that the environment was
-not working properly after the wrapping with SuperSuit~\cite{SuperSuit}.
+fields are always \textsf{False},
+raising suspicions that the environment was not working properly after the
+wrapping with SuperSuit~\cite{SuperSuit}.
 
 \begin{figure}
     \centering
@@ -163,13 +166,14 @@ not working properly after the wrapping with SuperSuit~\cite{SuperSuit}.
 After removing entirely the rewards and other parameters for the dead agents,
 the results are much more reasonable. Based on manual inspection,
 the agents are now able to avoid walls,
-interestingly by circling the grid in a counter-clockwise manner, as demonstrated in Fig.~\ref{fig:render2}. However,
+interestingly by circling the grid in a counter-clockwise manner,
+as demonstrated in Fig.~\ref{fig:render2}. However,
 they still do not seem to be able to avoid colliding with each other.
 The agents also seem to be agnostic about food,
-which is likely due to the lack of direct rewards for eating food.
-Overall, the fact that the agents are able to avoid walls is promising,
-indicating that they should be able to learn more complex strategies with
-a more sophisticated model.
+which is likely due to the lack of direct rewards for eating food. Overall,
+the fact that the agents are able to avoid walls is promising,
+indicating that they should be able to learn more complex strategies with a more
+sophisticated model.
 
 \begin{figure}
     \centering
@@ -183,30 +187,37 @@ a more sophisticated model.
 
 We also inspected the behavior of a model trained for 100,000 steps.
 This model does not yet seem to be able to avoid colliding with walls.
-After training for 1,000,000 steps, the model is able to avoid walls by
-circling the grid in a clockwise manner,
-opposite to the previous case.
-Therefore,
+After training for 1,000,000 steps,
+the model is able to avoid walls by circling the grid in a clockwise manner,
+opposite to the previous case. Therefore,
 it seems that the model needs more training steps to learn proper behaviors,
 and an easily reachable local optimum is circling the grid.
 
 \section{Plan for the Next Two Weeks}
 
-There are three major concerns for the next two weeks. First,
-the agents currently only train on the environment with the MLP policy.
-A more sophisticated policy,
-at least involving a convolutional neural network (CNN),
-needs to be designed and tested,
-so that it both is powerful enough and can finish inferencing within the time
-limit set in the proposal~\cite{proposal}. Second,
-the agents currently only train with self-play.
-Additional workarounds are needed to enable the agents to sometimes train with
-older versions of itself.
-Exactly how this can be done with Stable Baselines3~\cite{raffin2024stable}
-is still under our investigation. Third,
-the agents currently only train for very few steps.
-We will set up a more computationally-powerful training environment to train the
-agents for millions of more steps.
+There are three major concerns for the next two weeks:
+
+\begin{enumerate}
+    \item \textbf{Policy Improvement}: Currently,
+    the agents only train on the environment with the MLP policy.
+    A more sophisticated policy,
+    at least involving convolutional neural network (CNN) layers,
+    needs to be designed and tested,
+    so that it both is powerful enough and can finish inferencing within the
+    time limit set in the proposal~\cite{proposal}.
+
+    \item \textbf{Training Enhancement}:
+    The agents currently only train with self-play.
+    Additional workarounds are needed to enable the agents to sometimes train
+    with older versions of itself.
+    Exactly how this can be done with Stable Baselines3~\cite{raffin2024stable}
+    is still under our investigation.
+
+    \item \textbf{Increased Training Steps}:
+    The agents currently only train for very few steps.
+    We will set up a more computationally-powerful training environment to train
+    the agents for millions of more steps.
+\end{enumerate}
 
 \instruction{Maximum 6 pages}
 

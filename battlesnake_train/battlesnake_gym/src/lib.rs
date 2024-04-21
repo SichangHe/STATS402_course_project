@@ -5,8 +5,10 @@ use std::{
 
 use itertools::Itertools;
 use numpy::{ndarray::Array3, IntoPyArray, PyArray3};
-use pyo3::prelude::*;
-use rand::{rngs::SmallRng, seq::IteratorRandom, Rng, SeedableRng};
+use pyo3::{import_exception, prelude::*, types::PyBytes};
+use rand::{seq::IteratorRandom, Rng, RngCore, SeedableRng};
+use rand_chacha::ChaCha8Rng;
+use serde::{Deserialize, Serialize};
 use snork::{
     env::{Direction, Vec2D},
     game::{Game, Snake},
@@ -39,10 +41,10 @@ const HEALTH_NORMALIZATION: f64 = 1.0 / 239.0;
 type BoundArray3<'py> = Bound<'py, PyArray3<f64>>;
 
 #[pyclass]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 struct SnakeGame {
     pub game: Game,
-    pub rng: SmallRng,
+    pub rng: ChaCha8Rng,
     pub food_count: u16,
 }
 
@@ -50,7 +52,7 @@ struct SnakeGame {
 impl SnakeGame {
     #[new]
     fn new() -> PyResult<Self> {
-        let mut rng = SmallRng::from_entropy();
+        let mut rng = ChaCha8Rng::from_entropy();
         let game = fresh_game(&mut rng);
         Ok(Self {
             game,
@@ -154,6 +156,39 @@ impl SnakeGame {
             relative_move,
         ))
     }
+
+    // Referencing <https://github.com/light-curve/light-curve-python/pull/145/files>.
+    /// Used by pickle.load / pickle.loads
+    fn __setstate__(&mut self, state: Bound<PyBytes>) -> PyResult<()> {
+        *self = bincode::deserialize(state.as_bytes()).map_err(|why| {
+            import_exception!(pickle, UnpicklingError);
+            UnpicklingError::new_err(format!(
+                "Error deserializing `battlesnake_gym::SnakeGame`: `{why}`"
+            ))
+        })?;
+        Ok(())
+    }
+
+    /// Used by pickle.dump / pickle.dumps
+    fn __getstate__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        let vec_bytes = bincode::serialize(&self).map_err(|why| {
+            import_exception!(pickle, PicklingError);
+            PicklingError::new_err(format!(
+                "Error serializing  `battlesnake_gym::SnakeGame`: `{why}`"
+            ))
+        })?;
+        Ok(PyBytes::new_bound(py, &vec_bytes))
+    }
+
+    /// Used by copy.copy
+    fn __copy__(&self) -> Self {
+        self.clone()
+    }
+
+    /// Used by copy.deepcopy
+    fn __deepcopy__(&self, _memo: Bound<PyAny>) -> Self {
+        self.clone()
+    }
 }
 
 fn snake_facing(snake: &Snake) -> Option<isize> {
@@ -177,7 +212,7 @@ fn snake_true_move(snake: &Snake, relative_move: isize) -> isize {
     (relative_move + facing).rem_euclid(4)
 }
 
-fn fresh_game(rng: &mut SmallRng) -> Game {
+fn fresh_game<R: RngCore>(rng: &mut R) -> Game {
     init_game(BOARD_SIZE, BOARD_SIZE, N_SNAKES, rng)
 }
 

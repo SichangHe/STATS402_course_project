@@ -1,10 +1,10 @@
 from typing import Any, Final
 
 import numpy as np
-import supersuit as ss
 from gymnasium import spaces
 from pettingzoo import ParallelEnv
 from supersuit.multiagent_wrappers.black_death import black_death_par
+from supersuit.vector import MarkovVectorEnv
 from supersuit.vector.sb3_vector_wrapper import SB3VecEnvWrapper
 
 from battlesnake_gym._lowlevel import SnakeGame, hello
@@ -96,28 +96,34 @@ def convert_action(action: int | None) -> int:
     return action - 1
 
 
-def make_battlesnake_env() -> SB3VecEnvWrapper:
+def gymnasium_vector_env() -> MarkovVectorEnv:
     battlesnake_env = BattlesnakeEnv()
-    black_death_env: black_death_par = ss.black_death_v3(battlesnake_env)  # type: ignore
-    markov_vector_env = ss.pettingzoo_env_to_vec_env_v1(black_death_env)
-
-    # Work around nonsense in SuperSuit.
-    markov_vector_env.seed = placeholder_seed  # type: ignore
-    sb3_vec_env_wrapper = ss.concat_vec_envs_v1(
-        markov_vector_env, 4, base_class="stable_baselines3"
-    )
-    assert isinstance(sb3_vec_env_wrapper, SB3VecEnvWrapper)
-
-    def replacement_render(mode=None):
-        _ = mode
-        return sb3_vec_env_wrapper.venv.render()
-
-    sb3_vec_env_wrapper.render = replacement_render
-    return sb3_vec_env_wrapper
+    black_death_env = black_death_par(battlesnake_env)
+    markov_vector_env = MarkovVectorEnv(black_death_env)
+    return markov_vector_env
 
 
-def placeholder_seed(env, seed=None):
-    _ = env, seed
+class VecEnvWrapper(SB3VecEnvWrapper):
+    """Class to override nonsense in `SB3VecEnvWrapper`."""
+
+    venv: MarkovVectorEnv
+
+    # Override
+    def reset(self, seed=None, options=None):
+        observations, self.reset_infos = self.venv.reset(seed=seed, options=options)
+        return observations
+
+    # Override
+    def render(self, mode=None):
+        if mode:
+            self.venv.par_env.render_mode = mode
+        return self.venv.par_env.render()
 
 
-__all__ = ["hello", "make_battlesnake_env"]
+def sb3_vec_env() -> VecEnvWrapper:
+    markov_vector_env = gymnasium_vector_env()
+    sb3_vec_env = VecEnvWrapper(markov_vector_env)
+    return sb3_vec_env
+
+
+__all__ = ["hello", "gymnasium_vector_env", "VecEnvWrapper", "sb3_vec_env"]

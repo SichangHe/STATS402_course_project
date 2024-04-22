@@ -1,6 +1,7 @@
 import warnings
 
 import numpy as np
+import supersuit as ss
 from gymnasium import Env, spaces
 from pettingzoo.test import parallel_api_test
 from stable_baselines3.common.env_checker import check_for_nested_spaces  # type: ignore
@@ -16,8 +17,9 @@ from stable_baselines3.common.env_checker import (
     _is_numpy_array_space,
 )
 from supersuit.vector import ConcatVecEnv
+from supersuit.vector.sb3_vector_wrapper import SB3VecEnvWrapper
 
-from battlesnake_gym import BattlesnakeEnv, make_battlesnake_env
+from battlesnake_gym import BattlesnakeEnv, gymnasium_vector_env
 
 
 def test_parallel_api() -> None:
@@ -25,13 +27,49 @@ def test_parallel_api() -> None:
     parallel_api_test(env, num_cycles=1_000)
 
 
+def test_gymnasium_vector_env() -> None:
+    env = gymnasium_vector_env()
+    check_vec_env(env, skip_render_check=False)
+
+
 def test_sb3_env() -> None:
-    env = make_battlesnake_env().venv
+    battlesnake_env = BattlesnakeEnv()
+    black_death_env: black_death_par = ss.black_death_v3(battlesnake_env)  # type: ignore
+    markov_vector_env = ss.pettingzoo_env_to_vec_env_v1(black_death_env)
+    sb3_vec_env_wrapper = ss.concat_vec_envs_v1(
+        markov_vector_env, 4, base_class="stable_baselines3"
+    )
+    assert isinstance(sb3_vec_env_wrapper, SB3VecEnvWrapper)
+    env = sb3_vec_env_wrapper.venv
     assert isinstance(env, ConcatVecEnv), type(env)
     check_vec_env(env, skip_render_check=False)
 
 
-def check_vec_env(env, warn: bool = True, skip_render_check: bool = True) -> None:
+def test_no_vec_env_wrapper() -> None:
+    battlesnake_env = BattlesnakeEnv()
+    black_death_env: black_death_par = ss.black_death_v3(battlesnake_env)  # type: ignore
+    markov_vector_env = ss.pettingzoo_env_to_vec_env_v1(black_death_env)
+    check_vec_env(markov_vector_env, skip_render_check=False)
+
+
+def test_no_black_death() -> None:
+    battlesnake_env = BattlesnakeEnv()
+    markov_vector_env = ss.pettingzoo_env_to_vec_env_v1(battlesnake_env)
+    sb3_vec_env_wrapper = ss.concat_vec_envs_v1(
+        markov_vector_env, 4, base_class="stable_baselines3"
+    )
+    assert isinstance(sb3_vec_env_wrapper, SB3VecEnvWrapper)
+    env = sb3_vec_env_wrapper.venv
+    assert isinstance(env, ConcatVecEnv), type(env)
+    check_vec_env(env, skip_render_check=False)
+
+
+def check_vec_env(
+    env,
+    warn: bool = True,
+    skip_render_check: bool = True,
+    skip_gym_inheritance_check: bool = False,
+) -> None:
     """
     Copied from `stable_baselines3/common/env_checker.py`.
 
@@ -48,9 +86,10 @@ def check_vec_env(env, warn: bool = True, skip_render_check: bool = True) -> Non
     :param skip_render_check: Whether to skip the checks for the render method.
         True by default (useful for the CI)
     """
-    assert isinstance(
-        env, Env
-    ), "Your environment must inherit from the gymnasium.Env class cf. https://gymnasium.farama.org/api/env/"
+    if not skip_gym_inheritance_check:
+        assert isinstance(
+            env, Env
+        ), "Your environment must inherit from the gymnasium.Env class cf. https://gymnasium.farama.org/api/env/"
 
     # ============= Check the spaces (observation and action) ================
     _check_spaces(env)

@@ -3,6 +3,7 @@
 **.flutter*
 **.ipynb_checkpoints/
 **.lock
+**.model
 **.o
 **.pyc
 **.so

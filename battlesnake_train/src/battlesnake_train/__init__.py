@@ -25,13 +25,14 @@ def mini_train():
 
     cummulative_done = [True, True, True, True]
     while True:
-        # fmt: off
         if np.all(cummulative_done):
-            cummulative_done = [False, False, False, False]; 
-            obs = env.reset(); print(f"{CLEAR}{env.render()}")
+            # fmt: off
+            cummulative_done = [False, False, False, False]; obs = env.reset(); print(f"{CLEAR}{env.render()}")
             sleep(1)
-        action, _ = model.predict(obs); obs, rewards, done, _ = env.step(action); print(f"{CLEAR}{env.render()}") # type: ignore
-        cummulative_done = [cummulative_done[i] or bool(done[i]) for i in range(4) ]
+        # fmt: off
+        action, _ = model.predict(obs); obs, rewards, done, _ = env.step(action); print(f"{CLEAR}{env.render()}\naction: {action}\nrewards: {rewards}") # type: ignore
+        # fmt: on
+        cummulative_done = [cummulative_done[i] or bool(done[i]) for i in range(4)]
         sleep(0.2)
 
 

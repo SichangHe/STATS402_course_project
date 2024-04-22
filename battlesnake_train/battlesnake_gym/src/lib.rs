@@ -9,7 +9,7 @@ use pyo3::{import_exception, prelude::*, types::PyBytes};
 use rand::{seq::IteratorRandom, Rng, RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
-use snork::{
+use snork_engine::{
     env::{Direction, Vec2D},
     game::{Game, Snake},
     grid::CellT,

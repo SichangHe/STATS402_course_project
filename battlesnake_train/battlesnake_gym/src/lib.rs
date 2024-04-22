@@ -192,14 +192,14 @@ impl SnakeGame {
 }
 
 fn snake_facing(snake: &Snake) -> Option<isize> {
-    let mut bodys = snake.body.iter();
-    match (bodys.next(), bodys.next()) {
-        (Some(tail), Some(body)) => match (tail.x.cmp(&body.x), tail.y.cmp(&body.y)) {
-            (Less, Equal) => Some(RIGHT),
-            (Equal, Less) => Some(UP),
+    let mut head_to_tail = snake.body.iter().rev();
+    match (head_to_tail.next(), head_to_tail.next()) {
+        (Some(head), Some(neck)) => match (head.x.cmp(&neck.x), head.y.cmp(&neck.y)) {
+            (Less, Equal) => Some(LEFT),
+            (Equal, Less) => Some(DOWN),
             (Equal, Equal) => None,
-            (Equal, Greater) => Some(DOWN),
-            (Greater, Equal) => Some(LEFT),
+            (Equal, Greater) => Some(UP),
+            (Greater, Equal) => Some(RIGHT),
             _ => unreachable!("Snake body cannot be diagonal."),
         },
         _ => None,

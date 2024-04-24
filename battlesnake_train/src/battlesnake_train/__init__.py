@@ -8,7 +8,8 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.ppo import MlpPolicy
 
-from battlesnake_gym import sb3_vec_env
+from battlesnake_gym import BattlesnakeEnv, sb3_vec_env
+from battlesnake_train.ppo import DynPPO
 
 CLEAR = "\033[2J\033[H"
 
@@ -67,6 +68,14 @@ def find_last_model():
             if last_trial_and_model is None or trial > last_trial_and_model[0]:
                 last_trial_and_model = trial, file
     return last_trial_and_model
+
+
+def train_dyn_ppo():
+    env = BattlesnakeEnv()
+    model = DynPPO(MlpPolicy, env)
+    learn = lambda: model.learn(0x10_000, log_interval=0x1_000, progress_bar=True)
+    execution_time = timeit(learn, number=1)
+    print(f"Took {execution_time:.2f} seconds.")
 
 
 def hello() -> str:

@@ -1,7 +1,9 @@
+import io
+import pathlib
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any, Dict, Iterable, Optional, Type, Union
 
 import numpy as np
 import torch as th
@@ -107,7 +109,7 @@ class DynPPO:
 
     def __init__(
         self,
-        policy: Union[str, Type[ActorCriticPolicy]],
+        policy: str | Type[ActorCriticPolicy] | None,
         env: ParallelEnv,
         learning_rate: Union[float, Schedule] = 3e-4,
         n_steps: int = 2048,
@@ -133,38 +135,45 @@ class DynPPO:
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
+        ppo: PPO | None = None,
     ):
-        ppo_env = DummyVecEnv(
-            1, env.observation_space(env.agents[0]), env.action_space(env.agents[0])
-        )
-        self.ppo = PPO(
-            policy=policy,
-            env=ppo_env,
-            learning_rate=learning_rate,
-            n_steps=n_steps,
-            batch_size=batch_size,
-            n_epochs=n_epochs,
-            gamma=gamma,
-            gae_lambda=gae_lambda,
-            clip_range=clip_range,
-            clip_range_vf=clip_range_vf,
-            normalize_advantage=normalize_advantage,
-            ent_coef=ent_coef,
-            vf_coef=vf_coef,
-            max_grad_norm=max_grad_norm,
-            use_sde=use_sde,
-            sde_sample_freq=sde_sample_freq,
-            rollout_buffer_class=rollout_buffer_class,
-            rollout_buffer_kwargs=rollout_buffer_kwargs,
-            target_kl=target_kl,
-            stats_window_size=stats_window_size,
-            tensorboard_log=tensorboard_log,
-            policy_kwargs=policy_kwargs,
-            verbose=verbose,
-            seed=seed,
-            device=device,
-            _init_setup_model=_init_setup_model,
-        )
+        if policy is None:
+            assert (
+                ppo is not None
+            ), "At least one of `policy` and `ppo` must be provided to initialize `DynPPO`!"
+            self.ppo = ppo
+        else:
+            ppo_env = DummyVecEnv(
+                1, env.observation_space(env.agents[0]), env.action_space(env.agents[0])
+            )
+            self.ppo = PPO(
+                policy=policy,
+                env=ppo_env,
+                learning_rate=learning_rate,
+                n_steps=n_steps,
+                batch_size=batch_size,
+                n_epochs=n_epochs,
+                gamma=gamma,
+                gae_lambda=gae_lambda,
+                clip_range=clip_range,
+                clip_range_vf=clip_range_vf,
+                normalize_advantage=normalize_advantage,
+                ent_coef=ent_coef,
+                vf_coef=vf_coef,
+                max_grad_norm=max_grad_norm,
+                use_sde=use_sde,
+                sde_sample_freq=sde_sample_freq,
+                rollout_buffer_class=rollout_buffer_class,
+                rollout_buffer_kwargs=rollout_buffer_kwargs,
+                target_kl=target_kl,
+                stats_window_size=stats_window_size,
+                tensorboard_log=tensorboard_log,
+                policy_kwargs=policy_kwargs,
+                verbose=verbose,
+                seed=seed,
+                device=device,
+                _init_setup_model=_init_setup_model,
+            )
         self.env = env
         # Note: Should be `AgentID` not `int`, but who cares.
         self.agents: list[int] = env.possible_agents
@@ -269,6 +278,7 @@ class DynPPO:
             }
             for agent in self.agents:
                 self._last_episode_starts[agent] = True
+                self.rollout_buffer_cache[agent].clear()
 
             # Retrieve unnormalized observation for saving into the buffer
             if self.ppo._vec_normalize_env is not None:
@@ -444,3 +454,71 @@ class DynPPO:
         callback.on_rollout_end()
 
         return True
+
+    @classmethod
+    def load(
+        cls,
+        path: Union[str, pathlib.Path, io.BufferedIOBase],
+        env: ParallelEnv,
+        device: Union[th.device, str] = "auto",
+        custom_objects: Optional[Dict[str, Any]] = None,
+        print_system_info: bool = False,
+        force_reset: bool = True,
+        **kwargs,
+    ):
+        """
+        Wrapper of `stable_baselines3.load`:
+
+        Load the model from a zip-file.
+        Warning: ``load`` re-creates the model from scratch, it does not update it in-place!
+        For an in-place load use ``set_parameters`` instead.
+
+        :param path: path to the file (or a file-like) where to
+            load the agent from
+        :param env: the new environment to run the loaded model on
+            (can be None if you only need prediction from a trained model) has priority over any saved environment
+        :param device: Device on which the code should run.
+        :param custom_objects: Dictionary of objects to replace
+            upon loading. If a variable is present in this dictionary as a
+            key, it will not be deserialized and the corresponding item
+            will be used instead. Similar to custom_objects in
+            ``keras.models.load_model``. Useful when you have an object in
+            file that can not be deserialized.
+        :param print_system_info: Whether to print system info from the saved model
+            and the current system info (useful to debug loading issues)
+        :param force_reset: Force call to ``reset()`` before training
+            to avoid unexpected behavior.
+            See https://github.com/DLR-RM/stable-baselines3/issues/597
+        :param kwargs: extra arguments to change the model when loading
+        :return: new model instance with loaded parameters
+        """
+        ppo_env = DummyVecEnv(
+            1, env.observation_space(env.agents[0]), env.action_space(env.agents[0])
+        )
+        ppo = PPO.load(
+            path,
+            ppo_env,
+            device,
+            custom_objects,
+            print_system_info,
+            force_reset,
+            **kwargs,
+        )
+        return cls(None, env, ppo=ppo)
+
+    def save(
+        self,
+        path: Union[str, pathlib.Path, io.BufferedIOBase],
+        exclude: Optional[Iterable[str]] = None,
+        include: Optional[Iterable[str]] = None,
+    ) -> None:
+        """
+        Wrapper on `stable_baselines3.PPO.save`:
+
+        Save all the attributes of the object and the model parameters in a zip-file.
+
+        :param path: path to the file where the rl agent should be saved
+        :param exclude: name of parameters that should be excluded in addition to the default ones
+        :param include: name of parameters that might be excluded but should be included anyway
+        """
+        self.ppo.save(path, exclude, include)

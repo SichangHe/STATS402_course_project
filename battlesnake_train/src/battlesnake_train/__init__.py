@@ -58,9 +58,9 @@ def large_train():
         model.save(f"ppo-mlp-battlesnake{trial}.model")
 
 
-def find_last_model():
+def find_last_model(regex=r"ppo-mlp-battlesnake(\d+)\.model"):
     last_trial_and_model = None
-    model_regex = re.compile(r"ppo-mlp-battlesnake(\d+)\.model")
+    model_regex = re.compile(regex)
     for file in os.listdir():
         match = model_regex.match(file)
         if match:
@@ -76,6 +76,29 @@ def train_dyn_ppo():
     learn = lambda: model.learn(0x10_000, log_interval=0x1_000, progress_bar=True)
     execution_time = timeit(learn, number=1)
     print(f"Took {execution_time:.2f} seconds.")
+
+
+def large_dyn_ppo_train():
+    env = BattlesnakeEnv()
+    model = DynPPO(MlpPolicy, env)
+    last_trial_and_model = find_last_model(r"dyn-ppo-mlp-battlesnake(\d+)\.model")
+
+    if last_trial_and_model:
+        last_trial = last_trial_and_model[0]
+        # TODO: Implement.
+        model = DynPPO.load(last_trial_and_model[1], env=env)
+        print(f"Resuming training from `{last_trial_and_model[1]}`")
+    else:
+        last_trial = -1
+        model = DynPPO(MlpPolicy, env)
+        print("Starting training from scratch.")
+
+    learn = lambda: model.learn(0x100_000, log_interval=0x1_000, progress_bar=True)
+
+    for trial in range(last_trial + 1, 1000_000):
+        execution_time = timeit(learn, number=1)
+        print(f"Trial {trial}: took {execution_time:.2f} seconds.")
+        model.save(f"dyn-ppo-mlp-battlesnake{trial}.model")
 
 
 def hello() -> str:

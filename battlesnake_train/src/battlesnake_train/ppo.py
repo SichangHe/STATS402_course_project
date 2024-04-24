@@ -406,14 +406,23 @@ class DynPPO:
                         terminal_value = self.ppo.policy.predict_values(terminal_obs)[0]  # type: ignore[arg-type]
                     reward += self.ppo.gamma * terminal_value
 
-                self.rollout_buffer_cache[agent][-1].reward = reward
+                cache = self.rollout_buffer_cache[agent]
+                cache[-1].reward = reward
                 if done:
                     # Dump out rollout buffer cache if this agent is done.
-                    for item in self.rollout_buffer_cache[agent]:
+                    buffer_free_size = (
+                        rollout_buffer.buffer_size - rollout_buffer.size()
+                    )
+                    for item in cache[:buffer_free_size]:
                         item.add_to_buffer(rollout_buffer)
-                    n_steps += len(self.rollout_buffer_cache[agent])
-                    self.rollout_buffer_cache[agent].clear()
-                    last_observation = observation
+                    if buffer_free_size >= len(cache):
+                        n_steps += len(cache)
+                        cache.clear()
+                        last_observation = observation
+                    else:
+                        n_steps += buffer_free_size
+                        cache = cache[buffer_free_size:]
+                        last_observation = cache[0].observation
 
             if all(self._last_episode_starts.values()):
                 self.env.reset()

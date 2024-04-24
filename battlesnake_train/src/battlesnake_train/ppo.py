@@ -1,3 +1,5 @@
+import time
+from collections import deque
 from dataclasses import dataclass
 
 import numpy as np
@@ -6,6 +8,7 @@ from gymnasium import spaces
 from numpy.typing import NDArray
 from pettingzoo import ParallelEnv
 from stable_baselines3 import PPO
+from stable_baselines3.common import utils
 from stable_baselines3.common.buffers import RolloutBuffer
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.type_aliases import MaybeCallback
@@ -65,7 +68,7 @@ class DynPPO:
         progress_bar: bool = False,
     ):
         """Modified from `OnPolicyAlgorithm.learn` in
-        `stable_baselines3/common/on_policy_algorithm.py`"""
+        `stable_baselines3/common/on_policy_algorithm.py`."""
         iteration = 0
 
         # FIXME: Replace these with custom code.
@@ -105,6 +108,70 @@ class DynPPO:
 
         return self
 
+    def _setup_learn(
+        self,
+        total_timesteps: int,
+        callback: MaybeCallback = None,
+        reset_num_timesteps: bool = True,
+        tb_log_name: str = "run",
+        progress_bar: bool = False,
+    ) -> tuple[int, BaseCallback]:
+        """Modified from `BaseAlgorithm._setup_learn` in
+        `stable_baselines3/common/base_class.py`.
+
+        Initialize different variables needed for training.
+
+        :param total_timesteps: The total number of samples (env steps) to train on
+        :param callback: Callback(s) called at every step with state of the algorithm.
+        :param reset_num_timesteps: Whether to reset or not the ``num_timesteps`` attribute
+        :param tb_log_name: the name of the run for tensorboard log
+        :param progress_bar: Display a progress bar using tqdm and rich.
+        :return: Total timesteps and callback(s)
+        """
+        self.ppo.start_time = time.time_ns()
+
+        if self.ppo.ep_info_buffer is None or reset_num_timesteps:
+            # Initialize buffers if they don't exist, or reinitialize if resetting counters
+            self.ppo.ep_info_buffer = deque(maxlen=self.ppo._stats_window_size)
+            self.ppo.ep_success_buffer = deque(maxlen=self.ppo._stats_window_size)
+
+        if self.ppo.action_noise is not None:
+            self.ppo.action_noise.reset()
+
+        if reset_num_timesteps:
+            self.ppo.num_timesteps = 0
+            self.ppo._episode_num = 0
+        else:
+            # Make sure training timesteps are ahead of the internal counter
+            total_timesteps += self.ppo.num_timesteps
+        self.ppo._total_timesteps = total_timesteps
+        self.ppo._num_timesteps_at_start = self.ppo.num_timesteps
+
+        if reset_num_timesteps or len(self._last_observations) == 0:
+            self._last_observations = self.env.reset()[0]
+            for agent in self.agents:
+                self._last_episode_starts[agent] = True
+
+            # Retrieve unnormalized observation for saving into the buffer
+            if self.ppo._vec_normalize_env is not None:
+                self.ppo._last_original_obs = (
+                    self.ppo._vec_normalize_env.get_original_obs()
+                )
+
+        # Configure logger's outputs if no logger was passed
+        if not self.ppo._custom_logger:
+            self.ppo._logger = utils.configure_logger(
+                self.ppo.verbose,
+                self.ppo.tensorboard_log,
+                tb_log_name,
+                reset_num_timesteps,
+            )
+
+        # Create eval callback if needed
+        callback = self.ppo._init_callback(callback, progress_bar)
+
+        return total_timesteps, callback
+
     def collect_rollouts(
         self,
         callback: BaseCallback,
@@ -112,7 +179,20 @@ class DynPPO:
         n_rollout_steps: int,
     ) -> bool:
         """Modified from `OnPolicyAlgorithm.collect_rollouts` in
-        `stable_baselines3/common/on_policy_algorithm.py`"""
+        `stable_baselines3/common/on_policy_algorithm.py`.
+
+        Collect experiences using the current policy and fill a ``RolloutBuffer``.
+        The term rollout here refers to the model-free notion and should not
+        be used with the concept of rollout used in model-based RL or planning.
+
+        :param env: The training environment
+        :param callback: Callback that will be called at each step
+            (and at the beginning and end of the rollout)
+        :param rollout_buffer: Buffer to fill with rollouts
+        :param n_rollout_steps: Number of experiences to collect per environment
+        :return: True if function returned with at least `n_rollout_steps`
+            collected, False if callback terminated rollout prematurely.
+        """
         assert len(self._last_observations) > 0, "No previous observation was provided"
         # Switch to eval mode (this affects batch norm / dropout)
         self.ppo.policy.set_training_mode(False)

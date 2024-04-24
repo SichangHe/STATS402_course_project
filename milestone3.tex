@@ -1,0 +1,77 @@
+%!TEX = xelatex
+\documentclass[a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
+    \newcommand{\todo}[1]{\textcolor{red}{[ #1 ]}}
+    \newcommand{\instruction}[1]{\textcolor{orange}{#1}}
+    \renewcommand{\todo}[1]{} % Uncomment to hide todos.
+    \renewcommand{\instruction}[1]{} % Uncomment to hide instructions.
+
+\newcommand{\hidden}[1]{}
+
+\usepackage{biblatex}
+    \addbibresource{references.bib}
+
+\usepackage[colorlinks=false]{hyperref}
+
+\title{STATS 402 - Interdisciplinary Data Analysis\\
+    Resource-Constrained Deep Reinforcement Learning for Battlesnake\\
+    Milestone Report: Stage 3
+}
+\author{Steven Hé (Sīchàng)\\
+    sichang.he@dukekunshan.edu.cn
+}
+
+\begin{document}
+\maketitle
+
+\subparagraph{Abstract}
+
+Battlesnake~\cite{battlesnake}.
+
+\section{Notes}
+
+\subsection{Training Customization}
+
+We directly customized the training loop in Stable
+Baselines3~\cite{raffin2024stable}
+to simplify the logic and prepare for the implementation to train the agent
+against older versions of itself for 20\% of the time.
+Because Battlesnake is a multi-player simultaneous-move game,
+and Stable Baselines3 only supports single-agent environments,
+previously, we created our environment
+following the Pettingzoo~\cite{terry2021pettingzoo} parallel environment API,
+and used SuperSuit~\cite{SuperSuit} to wrap it.
+
+However, using SuperSuit for wrapping introduces two major downsides. First,
+complexity is massively increased,
+as SuperSuit requires multiple layers of wrappers.
+This obstructs the understanding of the training process and hinders any
+modifications to it, such as the old-version self-training. Second,
+SuperSuit produces empty observations and zero rewards for dead agents,
+so they appear alive,
+and the environment appears to be a Stable Baselines3 vectorized environment.
+These useless padding not only wastes computation during training,
+but raises uncertainty.
+Since dead agents' actions are counted into the number of steps the model has
+trained, it is unclear how many steps the model has actually trained.
+Additionally, it is unclear how the padding affects the training.
+
+We modified and overrode the training methods on Stable Baselines3's PPO
+implementation. Our implementation tracks each agent's statistics separately,
+and only pushes them to calculate the returns and advantages when the agent
+dies. We also correctly count the number of steps the model has trained,
+by summing the number of steps each alive agent moves.
+Although our implementation is not vectorized,
+it still uses all available CPU cores on our server with dual EPYC 7763 64-Core
+processors. Training for $16^5$ steps took 3777 seconds,
+longer than the 3060 seconds the previous implementation took. However,
+we note that the previous training was counting padding steps,
+meaning that the new implementation has effectively trained more steps.
+
+\printbibliography
+
+\end{document}

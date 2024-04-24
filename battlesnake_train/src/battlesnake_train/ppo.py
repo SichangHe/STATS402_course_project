@@ -17,7 +17,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.type_aliases import MaybeCallback, Schedule
 from stable_baselines3.common.utils import obs_as_tensor
-from torch import Tensor
+from torch import Tensor, ne
 
 from battlesnake_train.dummy import DummyVecEnv
 
@@ -454,6 +454,33 @@ class DynPPO:
         callback.on_rollout_end()
 
         return True
+
+    def predict(
+        self,
+        observations: dict[int, NDArray],
+        state: Optional[tuple[np.ndarray, ...]] = None,
+        episode_start: Optional[np.ndarray] = None,
+        deterministic: bool = False,
+    ) -> tuple[dict[int, NDArray], Optional[tuple[np.ndarray, ...]]]:
+        """
+        Wrapper for `stable_baselines3.common.base_class.BaseAlgorithm.predict`:
+
+        Get the policy action from an observation (and optional hidden state).
+        Includes sugar-coating to handle different observations (e.g. normalizing images).
+
+        :param observation: the input observation
+        :param state: The last hidden states (can be None, used in recurrent policies)
+        :param episode_start: The last masks (can be None, used in recurrent policies)
+            this correspond to beginning of episodes,
+            where the hidden states of the RNN must be reset.
+        :param deterministic: Whether or not to return deterministic actions.
+        :return: the model's action and the next hidden state
+            (used in recurrent policies)
+        """
+        sample_obs = observations.values().__iter__().__next__()
+        obs = np.asarray([observations.get(agent, sample_obs) for agent in self.agents])
+        action, next_state = self.ppo.predict(obs, state, episode_start, deterministic)
+        return {agent: action[agent] for agent in observations}, next_state
 
     @classmethod
     def load(

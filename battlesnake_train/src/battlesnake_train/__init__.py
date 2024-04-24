@@ -77,6 +77,21 @@ def train_dyn_ppo():
     execution_time = timeit(learn, number=1)
     print(f"Took {execution_time:.2f} seconds.")
 
+    cummulative_done = {a: True for a in env.agents}
+    for _ in range(100):
+        if all(cummulative_done.values()):
+            # fmt: off
+            cummulative_done = {a: False for a in env.agents}; obs, _ = env.reset(); print(f"{CLEAR}{env.render()}")
+            sleep(1)
+        # fmt: off
+        action, _ = model.predict(obs); obs, rewards, terms, truncs, _ = env.step(action); print(f"{CLEAR}{env.render()}\naction: {action}\nrewards: {rewards}") # type: ignore
+        # fmt: on
+        for agent, prev_done in cummulative_done.items():
+            cummulative_done[agent] = (
+                prev_done or terms.get(agent, False) or truncs.get(agent, False)
+            )
+        sleep(0.2)
+
 
 def large_dyn_ppo_train():
     env = BattlesnakeEnv()
@@ -85,7 +100,6 @@ def large_dyn_ppo_train():
 
     if last_trial_and_model:
         last_trial = last_trial_and_model[0]
-        # TODO: Implement.
         model = DynPPO.load(last_trial_and_model[1], env=env)
         print(f"Resuming training from `{last_trial_and_model[1]}`")
     else:

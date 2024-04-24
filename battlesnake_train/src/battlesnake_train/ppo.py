@@ -323,7 +323,7 @@ class DynPPO:
 
         callback.on_rollout_start()
 
-        last_observation, dones = None, None
+        last_observation, done_matrix = None, None
         while n_steps < n_rollout_steps:
             if (
                 self.ppo.use_sde
@@ -372,20 +372,9 @@ class DynPPO:
                 )
                 self.rollout_buffer_cache[agent].append(item)
 
-            new_obs, raw_rewards, terminations, truncations, infos = self.env.step(
+            new_obs, rewards, terminations, truncations, infos = self.env.step(
                 clipped_action_map
             )
-            rewards: dict[int, NDArray] = {
-                a: matrix1x1(reward) for a, reward in raw_rewards.items()
-            }
-            dones = np.asarray(
-                [
-                    terminations.get(agent, False) or truncations.get(agent, False)
-                    for agent in self.agents
-                ]
-            )
-            info_list = [infos.get(agent, {}) for agent in self.agents]
-
             self.ppo.num_timesteps += len(clipped_action_map)
 
             # Give access to local variables
@@ -393,15 +382,17 @@ class DynPPO:
             if not callback.on_step():
                 return False
 
-            self.ppo._update_info_buffer(info_list, dones)
-            n_steps += 1
-
             self._last_observations.clear()
             for agent, observation in new_obs.items():
+                reward = matrix1x1(rewards[agent])
                 observation = observation[np.newaxis, :].copy()
                 self._last_observations[agent] = observation
                 done = terminations[agent] or truncations[agent]
                 self._last_episode_starts[agent] = done
+                done_matrix = matrix1x1(done)
+
+                self.ppo._update_info_buffer([infos[agent]], done_matrix)
+
                 # Handle timeout by bootstraping with value function
                 if (
                     done
@@ -413,15 +404,19 @@ class DynPPO:
                     )[0]
                     with th.no_grad():
                         terminal_value = self.ppo.policy.predict_values(terminal_obs)[0]  # type: ignore[arg-type]
-                    rewards[agent] += self.ppo.gamma * terminal_value
+                    reward += self.ppo.gamma * terminal_value
 
-                self.rollout_buffer_cache[agent][-1].reward = rewards[agent]
+                self.rollout_buffer_cache[agent][-1].reward = reward
                 if done:
                     # Dump out rollout buffer cache if this agent is done.
                     for item in self.rollout_buffer_cache[agent]:
                         item.add_to_buffer(rollout_buffer)
+                    n_steps += len(self.rollout_buffer_cache[agent])
                     self.rollout_buffer_cache[agent].clear()
                     last_observation = observation
+
+            if all(self._last_episode_starts.values()):
+                self.env.reset()
 
         with th.no_grad():
             # Compute value for the last timestep
@@ -430,8 +425,10 @@ class DynPPO:
                 obs_as_tensor(last_observation, self.ppo.device)
             )
 
-        assert dones is not None
-        rollout_buffer.compute_returns_and_advantage(last_values=values, dones=dones)
+        assert done_matrix is not None
+        rollout_buffer.compute_returns_and_advantage(
+            last_values=values, dones=done_matrix
+        )
 
         callback.update_locals(locals())
 

@@ -1,4 +1,4 @@
-# STATS 402 Course Project: Battlesnake
+# Battlesnake Deep Reinforcement Learning (Course Project)
 
 Benchmark: minimax method.
 

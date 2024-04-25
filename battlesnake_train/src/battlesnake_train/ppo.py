@@ -1,5 +1,6 @@
 import io
 import pathlib
+import re
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -17,8 +18,9 @@ from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.type_aliases import MaybeCallback, Schedule
 from stable_baselines3.common.utils import obs_as_tensor
-from torch import Tensor, ne
+from torch import Tensor
 
+from battlesnake_train.disk import all_prev_models, find_last_model
 from battlesnake_train.dummy import DummyVecEnv
 
 
@@ -135,6 +137,9 @@ class DynPPO:
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
+        trial_index: int = 0,
+        save_model_name: str = "dyn-ppo",
+        saved_model_regex: re.Pattern | None = None,
         ppo: PPO | None = None,
     ):
         if policy is None:
@@ -175,6 +180,11 @@ class DynPPO:
                 _init_setup_model=_init_setup_model,
             )
         self.env = env
+        self.save_model_name = save_model_name
+        self.saved_model_regex = saved_model_regex or re.compile(
+            save_model_name + r"(\d+)\.model"
+        )
+        self.trial_index = trial_index
         # Note: Should be `AgentID` not `int`, but who cares.
         self.agents: list[int] = env.possible_agents
         self.rollout_buffer_cache: dict[int, list[RolloutBufferCacheItem]] = {
@@ -182,6 +192,46 @@ class DynPPO:
         }
         self._last_observations: dict[int, NDArray] = {}
         self._last_episode_starts: dict[int, bool] = {a: True for a in self.agents}
+        self.prev_models: dict[
+            int, DynPPO | str | pathlib.Path | io.BufferedIOBase
+        ] = {}
+
+    def learn_trials(
+        self,
+        n_trial: int,
+        n_timestep_per_trial: int,
+        callback: MaybeCallback = None,
+        log_interval: int = 1,
+        tb_log_name: str = "PPO",
+        reset_num_timesteps: bool = True,
+        progress_bar: bool = False,
+        exclude: Optional[Iterable[str]] = None,
+        include: Optional[Iterable[str]] = None,
+    ):
+        """Like `DynPPO.learn`, but for multiple trials, saving intermediate
+        models along the way.
+        """
+        self._find_prev_models()
+
+        for trial in range(self.trial_index, self.trial_index + n_trial):
+            self.trial_index = trial
+            self.learn(
+                n_timestep_per_trial,
+                callback,
+                log_interval,
+                tb_log_name,
+                reset_num_timesteps,
+                progress_bar,
+            )
+            time_took = time.time_ns() - self.ppo.start_time
+            print(f"Trial {trial} took {time_took / 1e9} seconds.")
+            saved_self_path = self.save(exclude=exclude, include=include)
+            self.prev_models[trial] = saved_self_path
+
+    def _find_prev_models(self):
+        for trial, model_file in all_prev_models(self.saved_model_regex):
+            if trial not in self.prev_models:
+                self.prev_models[trial] = model_file
 
     def learn(
         self,
@@ -483,6 +533,47 @@ class DynPPO:
         return {agent: action[agent] for agent in observations}, next_state
 
     @classmethod
+    def load_trial(
+        cls,
+        env: ParallelEnv,
+        trial_index: int | None = None,
+        save_model_name: str = "dyn-ppo",
+        saved_model_regex: re.Pattern | None = None,
+        device: Union[th.device, str] = "auto",
+        custom_objects: Optional[Dict[str, Any]] = None,
+        print_system_info: bool = False,
+        force_reset: bool = True,
+        **kwargs,
+    ):
+        """Load a model in the current directory from trial `trial_index`.
+        Default to loading the last model if `trial_index` is not set."""
+        saved_model_regex = saved_model_regex or re.compile(
+            save_model_name + r"(\d+)\.model"
+        )
+        if trial_index is None:
+            trial_and_model = find_last_model(saved_model_regex)
+            assert (
+                trial_and_model is not None
+            ), f"No previous model for `{save_model_name}` found in the current directory."
+            trial_index = trial_and_model[0]
+            model_file = trial_and_model[1]
+        else:
+            model_file = f"{save_model_name}{trial_index}.model"
+
+        return cls.load(
+            model_file,
+            env=env,
+            device=device,
+            custom_objects=custom_objects,
+            print_system_info=print_system_info,
+            force_reset=force_reset,
+            trial_index=trial_index,
+            save_model_name=save_model_name,
+            saved_model_regex=saved_model_regex,
+            **kwargs,
+        )
+
+    @classmethod
     def load(
         cls,
         path: Union[str, pathlib.Path, io.BufferedIOBase],
@@ -491,6 +582,9 @@ class DynPPO:
         custom_objects: Optional[Dict[str, Any]] = None,
         print_system_info: bool = False,
         force_reset: bool = True,
+        trial_index: int = 0,
+        save_model_name: str = "dyn-ppo",
+        saved_model_regex: re.Pattern | None = None,
         **kwargs,
     ):
         """
@@ -531,15 +625,24 @@ class DynPPO:
             force_reset,
             **kwargs,
         )
-        return cls(None, env, ppo=ppo)
+        return cls(
+            None,
+            env,
+            trial_index=trial_index,
+            save_model_name=save_model_name,
+            saved_model_regex=saved_model_regex,
+            ppo=ppo,
+        )
 
     def save(
         self,
-        path: Union[str, pathlib.Path, io.BufferedIOBase],
+        path: str | pathlib.Path | io.BufferedIOBase | None = None,
         exclude: Optional[Iterable[str]] = None,
         include: Optional[Iterable[str]] = None,
-    ) -> None:
+    ):
         """
+        Defaults to saving to f"{self.save_model_name}{self.trial_index}.model".
+
         Wrapper on `stable_baselines3.PPO.save`:
 
         Save all the attributes of the object and the model parameters in a zip-file.
@@ -548,4 +651,6 @@ class DynPPO:
         :param exclude: name of parameters that should be excluded in addition to the default ones
         :param include: name of parameters that might be excluded but should be included anyway
         """
+        path = path or f"{self.save_model_name}{self.trial_index}.model"
         self.ppo.save(path, exclude, include)
+        return path

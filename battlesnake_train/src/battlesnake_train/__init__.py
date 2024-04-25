@@ -1,5 +1,3 @@
-import os
-import re
 from time import sleep
 from timeit import timeit
 
@@ -9,6 +7,7 @@ from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.ppo import MlpPolicy
 
 from battlesnake_gym import BattlesnakeEnv, sb3_vec_env
+from battlesnake_train.disk import find_last_model
 from battlesnake_train.ppo import DynPPO
 
 CLEAR = "\033[2J\033[H"
@@ -58,18 +57,6 @@ def large_train():
         model.save(f"ppo-mlp-battlesnake{trial}.model")
 
 
-def find_last_model(regex=r"ppo-mlp-battlesnake(\d+)\.model"):
-    last_trial_and_model = None
-    model_regex = re.compile(regex)
-    for file in os.listdir():
-        match = model_regex.match(file)
-        if match:
-            trial = int(match.group(1))
-            if last_trial_and_model is None or trial > last_trial_and_model[0]:
-                last_trial_and_model = trial, file
-    return last_trial_and_model
-
-
 def train_dyn_ppo():
     env = BattlesnakeEnv()
     model = DynPPO(MlpPolicy, env)
@@ -78,6 +65,7 @@ def train_dyn_ppo():
     print(f"Took {execution_time:.2f} seconds.")
 
     cummulative_done = {a: True for a in env.agents}
+
     for _ in range(100):
         if all(cummulative_done.values()):
             # fmt: off
@@ -95,24 +83,9 @@ def train_dyn_ppo():
 
 def large_dyn_ppo_train():
     env = BattlesnakeEnv()
-    model = DynPPO(MlpPolicy, env)
-    last_trial_and_model = find_last_model(r"dyn-ppo-mlp-battlesnake(\d+)\.model")
-
-    if last_trial_and_model:
-        last_trial = last_trial_and_model[0]
-        model = DynPPO.load(last_trial_and_model[1], env=env)
-        print(f"Resuming training from `{last_trial_and_model[1]}`")
-    else:
-        last_trial = -1
-        model = DynPPO(MlpPolicy, env)
-        print("Starting training from scratch.")
-
-    learn = lambda: model.learn(0x100_000, log_interval=0x1_000, progress_bar=True)
-
-    for trial in range(last_trial + 1, 1000_000):
-        execution_time = timeit(learn, number=1)
-        print(f"Trial {trial}: took {execution_time:.2f} seconds.")
-        model.save(f"dyn-ppo-mlp-battlesnake{trial}.model")
+    model = DynPPO.load_trial(env, save_model_name="dyn-ppo-mlp-battlesnake")
+    print(f"Model trial index: {model.trial_index}.")
+    model.learn_trials(1_000, 0x100_000, log_interval=0x1_000, progress_bar=True)
 
 
 def hello() -> str:

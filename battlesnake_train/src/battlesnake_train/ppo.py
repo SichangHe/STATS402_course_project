@@ -1,5 +1,6 @@
 import io
 import pathlib
+import random
 import re
 import time
 from collections import deque
@@ -56,6 +57,8 @@ class DynPPO:
     Additional parameters:
 
     :param finish_episode: Whether to finish current episodes before training.
+    :param p_use_older_version: Probability to use an older version of the
+    model.
 
     This object wraps a `stable_baselines3.PPO` instance:
 
@@ -113,13 +116,12 @@ class DynPPO:
     :param _init_setup_model: Whether or not to build the network at the creation of the instance
     """
 
-    # TODO: Train against older self.
-
     def __init__(
         self,
         policy: str | Type[ActorCriticPolicy] | None,
         env: ParallelEnv,
         finish_episode: bool = True,
+        p_use_older_version: float = 0.2,
         learning_rate: Union[float, Schedule] = 3e-4,
         n_steps: int = 2048,
         batch_size: int = 64,
@@ -188,6 +190,7 @@ class DynPPO:
             )
         self.env = env
         self.finish_episode = finish_episode
+        self.p_use_older_version = p_use_older_version
         self.save_model_name = save_model_name
         self.saved_model_regex = saved_model_regex or re.compile(
             save_model_name + r"(\d+)\.model"
@@ -200,9 +203,11 @@ class DynPPO:
         }
         self._last_observations: dict[int, NDArray] = {}
         self._last_episode_starts: dict[int, bool] = {a: True for a in self.agents}
-        self.prev_models: dict[
-            int, DynPPO | str | pathlib.Path | io.BufferedIOBase
-        ] = {}
+        self.prev_trials: list[int] = []
+        self.prev_models: dict[int, DynPPO | str | pathlib.Path | io.BufferedIOBase] = (
+            {}
+        )
+        self.prev_trials_picked: list[list[int]] = []
 
     def learn_trials(
         self,
@@ -234,11 +239,13 @@ class DynPPO:
             time_took = time.time_ns() - self.ppo.start_time
             print(f"Trial {trial} took {time_took / 1e9} seconds.")
             saved_self_path = self.save(exclude=exclude, include=include)
+            self.prev_trials.append(trial)
             self.prev_models[trial] = saved_self_path
 
     def _find_prev_models(self):
         for trial, model_file in all_prev_models(self.saved_model_regex):
             if trial not in self.prev_models:
+                self.prev_trials.append(trial)
                 self.prev_models[trial] = model_file
 
     def learn(
@@ -391,6 +398,8 @@ class DynPPO:
 
         callback.on_rollout_start()
 
+        dyn_ppo_agents = self._pick_dyn_ppo_agents()
+
         episode_ongoing = False
         """To finish the current episode before training."""
         last_observation, done_matrix = None, None
@@ -406,9 +415,10 @@ class DynPPO:
 
             clipped_action_map: dict[int, NDArray] = {}
             for agent, observation in self._last_observations.items():
+                dyn_ppo = dyn_ppo_agents.get(agent, self)
                 with th.no_grad():
-                    obs_tensor = obs_as_tensor(observation, self.ppo.device)
-                    action_tensor, value, log_prob = self.ppo.policy(obs_tensor)
+                    obs_tensor = obs_as_tensor(observation, dyn_ppo.ppo.device)
+                    action_tensor, value, log_prob = dyn_ppo.ppo.policy(obs_tensor)
                 action: NDArray = action_tensor.cpu().numpy()
 
                 # Rescale and perform action
@@ -430,18 +440,19 @@ class DynPPO:
 
                 clipped_action_map[agent] = clipped_action[0]
 
-                if isinstance(self.ppo.action_space, spaces.Discrete):
-                    # Reshape in case of discrete action
-                    action = action.reshape(-1, 1)
-                item = RolloutBufferCacheItem(
-                    observation,
-                    action,
-                    None,
-                    self._last_episode_starts[agent],
-                    value,
-                    log_prob,
-                )
-                self.rollout_buffer_cache[agent].append(item)
+                if dyn_ppo is self:
+                    if isinstance(self.ppo.action_space, spaces.Discrete):
+                        # Reshape in case of discrete action
+                        action = action.reshape(-1, 1)
+                    item = RolloutBufferCacheItem(
+                        observation,
+                        action,
+                        None,
+                        self._last_episode_starts[agent],
+                        value,
+                        log_prob,
+                    )
+                    self.rollout_buffer_cache[agent].append(item)
 
             new_obs, rewards, terminations, truncations, infos = self.env.step(
                 clipped_action_map
@@ -455,7 +466,6 @@ class DynPPO:
 
             self._last_observations.clear()
             for agent, observation in new_obs.items():
-                reward = matrix1x1(rewards[agent])
                 observation = observation[np.newaxis, :].copy()
                 self._last_observations[agent] = observation
                 done = terminations[agent] or truncations[agent]
@@ -464,42 +474,54 @@ class DynPPO:
 
                 self.ppo._update_info_buffer([infos[agent]], done_matrix)
 
-                # Handle timeout by bootstraping with value function
-                if (
-                    done
-                    and infos[agent].get("terminal_observation") is not None
-                    and infos[agent].get("TimeLimit.truncated", False)
-                ):
-                    terminal_obs = self.ppo.policy.obs_to_tensor(
-                        infos[agent]["terminal_observation"]
-                    )[0]
-                    with th.no_grad():
-                        terminal_value = self.ppo.policy.predict_values(terminal_obs)[0]  # type: ignore[arg-type]
-                    reward += self.ppo.gamma * terminal_value
+                if dyn_ppo_agents.get(agent) is None:
+                    # This agent is `self`.
+                    reward = matrix1x1(rewards[agent])
+                    # Handle timeout by bootstraping with value function
+                    if (
+                        done
+                        and infos[agent].get("terminal_observation") is not None
+                        and infos[agent].get("TimeLimit.truncated", False)
+                    ):
+                        terminal_obs = self.ppo.policy.obs_to_tensor(
+                            infos[agent]["terminal_observation"]
+                        )[0]
+                        with th.no_grad():
+                            terminal_value = self.ppo.policy.predict_values(terminal_obs)[0]  # type: ignore[arg-type]
+                        reward += self.ppo.gamma * terminal_value
 
-                cache = self.rollout_buffer_cache[agent]
-                cache[-1].reward = reward
-                if done:
-                    # Dump out rollout buffer cache if this agent is done.
-                    # Assuming the buffer grows if `finish_episode`.
-                    buffer_free_size = (
-                        len(cache)
-                        if self.finish_episode
-                        else (rollout_buffer.buffer_size - rollout_buffer.size())
-                    )
-                    for item in cache[:buffer_free_size]:
-                        item.add_to_buffer(rollout_buffer)
-                    if buffer_free_size >= len(cache):
-                        n_steps += len(cache)
-                        cache.clear()
-                        last_observation = observation
-                    else:
-                        n_steps += buffer_free_size
-                        cache = cache[buffer_free_size:]
-                        last_observation = cache[0].observation
+                    cache = self.rollout_buffer_cache[agent]
+                    cache[-1].reward = reward
+                    if done:
+                        # Dump out rollout buffer cache if this agent is done.
+                        # Assuming the buffer grows if `finish_episode`.
+                        buffer_free_size = (
+                            len(cache)
+                            if self.finish_episode
+                            else (rollout_buffer.buffer_size - rollout_buffer.size())
+                        )
+                        for item in cache[:buffer_free_size]:
+                            item.add_to_buffer(rollout_buffer)
+                        if buffer_free_size >= len(cache):
+                            n_steps += len(cache)
+                            cache.clear()
+                            last_observation = observation
+                        else:
+                            n_steps += buffer_free_size
+                            cache = cache[buffer_free_size:]
+                            last_observation = cache[0].observation
 
-            if all(self._last_episode_starts.values()):
+            if all(
+                (
+                    last_episode_start or dyn_ppo_agents.get(agent)
+                    for agent, last_episode_start in self._last_episode_starts.items()
+                )
+            ):
+                # All agents are either done, or is not `self`. Reset episode.
                 self.env.reset()
+                dyn_ppo_agents = self._pick_dyn_ppo_agents()
+                for agent in self.agents:
+                    self._last_episode_starts[agent] = True
                 episode_ongoing = False
 
         with th.no_grad():
@@ -519,6 +541,38 @@ class DynPPO:
         callback.on_rollout_end()
 
         return True
+
+    def _pick_dyn_ppo_agents(self):
+        """Return a dictionary from agent IDs to `DynPPO` instances.
+        Absence of an agent ID means to use `self`."""
+        trials_picked: list[int] = []
+        agents: dict[int, DynPPO] = {}
+        if len(self.prev_models) > 0:
+            while True:
+                for agent in self.agents:
+                    if random.random() < self.p_use_older_version:
+                        trial = random.choice(self.prev_trials)
+                        trials_picked.append(trial)
+                        maybe_dyn_ppo = self.prev_models[trial]
+                        if isinstance(maybe_dyn_ppo, DynPPO):
+                            agents[agent] = maybe_dyn_ppo
+                        else:
+                            dyn_ppo = DynPPO.load(
+                                maybe_dyn_ppo,
+                                self.env,
+                                self.ppo.device,
+                                force_reset=False,
+                            )
+                            self.prev_models[agent] = dyn_ppo
+                            agents[agent] = dyn_ppo
+
+                if len(agents) < len(self.agents):
+                    break
+                # Else: no agent is `self`, re-pick.
+                trials_picked.clear()
+                agents.clear()
+        self.prev_trials_picked.append(trials_picked)
+        return agents
 
     def predict(
         self,

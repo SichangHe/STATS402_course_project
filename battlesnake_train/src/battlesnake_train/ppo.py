@@ -20,6 +20,7 @@ from stable_baselines3.common.type_aliases import MaybeCallback, Schedule
 from stable_baselines3.common.utils import obs_as_tensor
 from torch import Tensor
 
+from battlesnake_train.buf import GrowableRolloutBuffer
 from battlesnake_train.disk import all_prev_models, find_last_model
 from battlesnake_train.dummy import DummyVecEnv
 
@@ -51,6 +52,11 @@ def matrix1x1(num):
 
 class DynPPO:
     """Dynamic PPO that works with Pettingzoo `ParallelEnv`.
+
+    Additional parameters:
+
+    :param finish_episode: Whether to finish current episodes before training.
+
     This object wraps a `stable_baselines3.PPO` instance:
 
     Proximal Policy Optimization algorithm (PPO) (clip version)
@@ -113,6 +119,7 @@ class DynPPO:
         self,
         policy: str | Type[ActorCriticPolicy] | None,
         env: ParallelEnv,
+        finish_episode: bool = True,
         learning_rate: Union[float, Schedule] = 3e-4,
         n_steps: int = 2048,
         batch_size: int = 64,
@@ -127,7 +134,7 @@ class DynPPO:
         max_grad_norm: float = 0.5,
         use_sde: bool = False,
         sde_sample_freq: int = -1,
-        rollout_buffer_class: Optional[Type[RolloutBuffer]] = None,
+        rollout_buffer_class: Optional[Type[RolloutBuffer]] = GrowableRolloutBuffer,
         rollout_buffer_kwargs: Optional[Dict[str, Any]] = None,
         target_kl: Optional[float] = None,
         stats_window_size: int = 100,
@@ -180,6 +187,7 @@ class DynPPO:
                 _init_setup_model=_init_setup_model,
             )
         self.env = env
+        self.finish_episode = finish_episode
         self.save_model_name = save_model_name
         self.saved_model_regex = saved_model_regex or re.compile(
             save_model_name + r"(\d+)\.model"
@@ -383,8 +391,11 @@ class DynPPO:
 
         callback.on_rollout_start()
 
+        episode_ongoing = False
+        """To finish the current episode before training."""
         last_observation, done_matrix = None, None
-        while n_steps < n_rollout_steps:
+        while episode_ongoing or n_steps < n_rollout_steps:
+            episode_ongoing = self.finish_episode
             if (
                 self.ppo.use_sde
                 and self.ppo.sde_sample_freq > 0
@@ -470,8 +481,11 @@ class DynPPO:
                 cache[-1].reward = reward
                 if done:
                     # Dump out rollout buffer cache if this agent is done.
+                    # Assuming the buffer grows if `finish_episode`.
                     buffer_free_size = (
-                        rollout_buffer.buffer_size - rollout_buffer.size()
+                        len(cache)
+                        if self.finish_episode
+                        else (rollout_buffer.buffer_size - rollout_buffer.size())
                     )
                     for item in cache[:buffer_free_size]:
                         item.add_to_buffer(rollout_buffer)
@@ -486,6 +500,7 @@ class DynPPO:
 
             if all(self._last_episode_starts.values()):
                 self.env.reset()
+                episode_ongoing = False
 
         with th.no_grad():
             # Compute value for the last timestep

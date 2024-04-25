@@ -83,9 +83,9 @@ def train_dyn_ppo():
 
 def large_dyn_ppo_train():
     env = BattlesnakeEnv()
-    model = DynPPO.load_trial(env, save_model_name="dyn-ppo-mlp-battlesnake")
+    model = DynPPO.load_trial(env, save_model_name="dyn-ppo20prev-mlp-battlesnake")
     print(f"Model trial index: {model.trial_index}.")
-    model.learn_trials(1_000, 0x100_000, log_interval=0x1_000, progress_bar=True)
+    model.learn_trials(10, 0x100_000, log_interval=0x1_000, progress_bar=True)
 
 
 def hello() -> str:

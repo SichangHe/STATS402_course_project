@@ -600,6 +600,7 @@ class DynPPO:
         trial_index: int = 0,
         save_model_name: str = "dyn-ppo",
         saved_model_regex: re.Pattern | None = None,
+        rollout_buffer_class: Optional[Type[RolloutBuffer]] = GrowableRolloutBuffer,
         **kwargs,
     ):
         """
@@ -638,6 +639,7 @@ class DynPPO:
             custom_objects,
             print_system_info,
             force_reset,
+            rollout_buffer_class=rollout_buffer_class,
             **kwargs,
         )
         return cls(

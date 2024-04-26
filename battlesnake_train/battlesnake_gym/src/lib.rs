@@ -151,10 +151,19 @@ impl SnakeGame {
         Ok(format!("{:?}", self.game))
     }
 
+    /// Given the true move of a snake, return the move relative to its facing.
     fn snake_true_move(&self, snake_index: usize, relative_move: isize) -> PyResult<isize> {
         Ok(snake_true_move(
             &self.game.snakes[snake_index],
             relative_move,
+        ))
+    }
+
+    /// Given the move of a snake relative to its facing, return the true move.
+    fn snake_relative_move(&self, snake_index: usize, true_move: isize) -> PyResult<isize> {
+        Ok(snake_relative_move(
+            &self.game.snakes[snake_index],
+            true_move,
         ))
     }
 
@@ -221,6 +230,12 @@ fn snake_facing(snake: &Snake) -> Option<isize> {
 fn snake_true_move(snake: &Snake, relative_move: isize) -> isize {
     let facing = snake_facing(snake).unwrap_or(0);
     (relative_move + facing).rem_euclid(4)
+}
+
+/// 0: Up, 1: Right, 2: Down, 3: Left.
+fn snake_relative_move(snake: &Snake, true_move: isize) -> isize {
+    let facing = snake_facing(snake).unwrap_or(0);
+    (true_move - facing).rem_euclid(4)
 }
 
 fn fresh_game<R: RngCore>(rng: &mut R) -> Game {

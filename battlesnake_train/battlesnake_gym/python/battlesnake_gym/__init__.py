@@ -54,6 +54,8 @@ class BattlesnakeEnv(ParallelEnv):
 
     # override
     def step(self, actions: dict[int, int]):
+        """The actions are relative directions for each snake,
+        from `left`, `up`, to `down` in a clockwise manner."""
         actions_converted = [convert_action(actions.get(i)) for i in range(N_SNAKES)]
         raw_rewards, raw_terminations = self.snake_game.step(actions_converted)
         infos = self._make_infos()

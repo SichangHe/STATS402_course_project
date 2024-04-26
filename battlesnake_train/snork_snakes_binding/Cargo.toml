@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 bincode = "1.3"
 pyo3 = "0.21"
 snork = { version = "0.2", path = "../../snork" }
+tokio = { version = "*", features = ["rt-multi-thread", "sync", "time"] }
 
 [profile.release]
 debug = true

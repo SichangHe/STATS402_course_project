@@ -601,10 +601,12 @@ class DynPPO:
         :return: the model's action and the next hidden state
             (used in recurrent policies)
         """
-        sample_obs = observations.values().__iter__().__next__()
-        obs = np.asarray([observations.get(agent, sample_obs) for agent in self.agents])
+        obs = np.asarray([observation for _, observation in observations.items()])
         action, next_state = self.ppo.predict(obs, state, episode_start, deterministic)
-        return {agent: action[agent] for agent in observations}, next_state
+        return {
+            agent: action[index]
+            for index, (agent, _) in enumerate(observations.items())
+        }, next_state
 
     @classmethod
     def load_trial(

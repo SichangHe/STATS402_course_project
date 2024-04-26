@@ -4,9 +4,9 @@ from stable_baselines3.ppo import MlpPolicy
 
 from battlesnake_gym import BattlesnakeEnv
 from battlesnake_train.feature import (
-    VGG16_CLASSIFIER_NET_ARCH,
+    VGG_CLASSIFIER_NET_ARCH,
     VGGFeatureExtractor,
-    vgg16_classifier_activation_fn,
+    vgg_classifier_activation_fn,
 )
 from battlesnake_train.ppo import DynPPO
 
@@ -15,8 +15,8 @@ model = DynPPO.load_trial(env, save_model_name="dyn-ppo-vgg16-battlesnake")
 if model is None:
     policy_kwargs = dict(
         features_extractor_class=VGGFeatureExtractor,
-        net_arch=VGG16_CLASSIFIER_NET_ARCH,
-        activation_fn=vgg16_classifier_activation_fn,
+        net_arch=VGG_CLASSIFIER_NET_ARCH,
+        activation_fn=vgg_classifier_activation_fn,
     )
     model = DynPPO(
         MlpPolicy,

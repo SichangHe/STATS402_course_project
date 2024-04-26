@@ -18,15 +18,15 @@ class VGGFeatureExtractor(BaseFeaturesExtractor):
     def __init__(
         self,
         observation_space: spaces.Box,
-        features_dim: int = 4096,
+        features_dim: int = 512,
     ) -> None:
         super().__init__(observation_space, features_dim)
         self.features = make_vgg_feature_net(observation_space)
-        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
+        self.avgpool = nn.AdaptiveAvgPool2d((2, 2))
         self.linear = nn.Sequential(
-            # FIXME: 7 is because 224 // 2 // 2 // 2 // 2 // 2,
-            # but we have 21 // ?
-            nn.Linear(512 * 7 * 7, features_dim),
+            # In VGG the width is 7 is because 224 // 2 // 2 // 2 // 2 // 2 from
+            # the max-pooling, but we have 21 // 2 // 2 // 2 = 2.
+            nn.Linear(256 * 2 * 2, features_dim),
             nn.ReLU(True),
             nn.Dropout(),
         )
@@ -50,14 +50,14 @@ N_OUT_CHANNELS_LIST: Final[list[int | None]] = [
     256,
     256,
     None,
-    512,
-    512,
-    512,
-    None,
-    512,
-    512,
-    512,
-    None,
+    # 512, # These layers are disabled because our width is 21 not 224.
+    # 512,
+    # 512,
+    # None,
+    # 512,
+    # 512,
+    # 512,
+    # None,
 ]
 
 
@@ -76,11 +76,11 @@ def make_vgg_feature_net(observation_space: spaces.Box):
     return nn.Sequential(*layers)
 
 
-VGG16_CLASSIFIER_NET_ARCH: Final = [4096]
+VGG_CLASSIFIER_NET_ARCH: Final = [256]
 """Only one layer because the feature extractor already has one."""
 
 
-def vgg16_classifier_activation_fn():
+def vgg_classifier_activation_fn():
     return nn.Sequential(
         nn.ReLU(True),
         nn.Dropout(),

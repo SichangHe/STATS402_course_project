@@ -337,13 +337,7 @@ class DynPPO:
         self.ppo._num_timesteps_at_start = self.ppo.num_timesteps
 
         if reset_num_timesteps or len(self._last_observations) == 0:
-            self._last_observations = {
-                agent: observation[np.newaxis, :].copy()
-                for agent, observation in self.env.reset()[0].items()
-            }
-            for agent in self.agents:
-                self._last_episode_starts[agent] = True
-                self.rollout_buffer_cache[agent].clear()
+            self._reset_episode()
 
             # Retrieve unnormalized observation for saving into the buffer
             if self.ppo._vec_normalize_env is not None:
@@ -364,6 +358,15 @@ class DynPPO:
         callback = self.ppo._init_callback(callback, progress_bar)
 
         return total_timesteps, callback
+
+    def _reset_episode(self):
+        self._last_observations = {
+            agent: observation[np.newaxis, :].copy()
+            for agent, observation in self.env.reset()[0].items()
+        }
+        for agent in self.agents:
+            self._last_episode_starts[agent] = True
+            self.rollout_buffer_cache[agent].clear()
 
     def collect_rollouts(
         self,
@@ -417,7 +420,7 @@ class DynPPO:
             for agent, observation in self._last_observations.items():
                 dyn_ppo = dyn_ppo_agents.get(agent, self)
                 with th.no_grad():
-                    obs_tensor = obs_as_tensor(observation, dyn_ppo.ppo.device)
+                    obs_tensor = obs_as_tensor(observation, self.ppo.device)
                     action_tensor, value, log_prob = dyn_ppo.ppo.policy(obs_tensor)
                 action: NDArray = action_tensor.cpu().numpy()
 
@@ -440,7 +443,8 @@ class DynPPO:
 
                 clipped_action_map[agent] = clipped_action[0]
 
-                if dyn_ppo is self:
+                if agent not in dyn_ppo_agents:
+                    # This agent is `self`.
                     if isinstance(self.ppo.action_space, spaces.Discrete):
                         # Reshape in case of discrete action
                         action = action.reshape(-1, 1)
@@ -467,14 +471,16 @@ class DynPPO:
             self._last_observations.clear()
             for agent, observation in new_obs.items():
                 observation = observation[np.newaxis, :].copy()
-                self._last_observations[agent] = observation
                 done = terminations[agent] or truncations[agent]
                 self._last_episode_starts[agent] = done
                 done_matrix = matrix1x1(done)
+                if not done:
+                    # No need to record observations for done agents.
+                    self._last_observations[agent] = observation
 
                 self.ppo._update_info_buffer([infos[agent]], done_matrix)
 
-                if dyn_ppo_agents.get(agent) is None:
+                if agent not in dyn_ppo_agents:
                     # This agent is `self`.
                     reward = matrix1x1(rewards[agent])
                     # Handle timeout by bootstraping with value function
@@ -513,15 +519,14 @@ class DynPPO:
 
             if all(
                 (
-                    last_episode_start or dyn_ppo_agents.get(agent)
+                    # Either every agent is done, or is not `self`.
+                    last_episode_start or (agent in dyn_ppo_agents)
                     for agent, last_episode_start in self._last_episode_starts.items()
                 )
             ):
                 # All agents are either done, or is not `self`. Reset episode.
-                self.env.reset()
+                self._reset_episode()
                 dyn_ppo_agents = self._pick_dyn_ppo_agents()
-                for agent in self.agents:
-                    self._last_episode_starts[agent] = True
                 episode_ongoing = False
 
         with th.no_grad():

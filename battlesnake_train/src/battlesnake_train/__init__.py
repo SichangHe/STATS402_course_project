@@ -59,7 +59,7 @@ def large_train():
 
 def train_dyn_ppo():
     env = BattlesnakeEnv()
-    model = DynPPO(MlpPolicy, env)
+    model = DynPPO(MlpPolicy, env, save_model_name="dyn-ppo20prev-mlp-battlesnake")
     learn = lambda: model.learn(0x10_000, log_interval=0x1_000, progress_bar=True)
     execution_time = timeit(learn, number=1)
     print(f"Took {execution_time:.2f} seconds.")

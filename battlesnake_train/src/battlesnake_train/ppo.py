@@ -585,7 +585,7 @@ class DynPPO:
         state: Optional[tuple[np.ndarray, ...]] = None,
         episode_start: Optional[np.ndarray] = None,
         deterministic: bool = False,
-    ) -> tuple[dict[int, NDArray], Optional[tuple[np.ndarray, ...]]]:
+    ) -> tuple[dict[int, int], Optional[tuple[np.ndarray, ...]]]:
         """
         Wrapper for `stable_baselines3.common.base_class.BaseAlgorithm.predict`:
 

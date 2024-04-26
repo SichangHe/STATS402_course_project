@@ -5,7 +5,7 @@ use std::{
 
 use itertools::Itertools;
 use numpy::{ndarray::Array3, IntoPyArray, PyArray3};
-use pyo3::{import_exception, prelude::*, types::PyBytes};
+use pyo3::{exceptions::PyValueError, import_exception, prelude::*, types::PyBytes};
 use rand::{seq::IteratorRandom, Rng, RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
@@ -137,6 +137,7 @@ impl SnakeGame {
         Ok((rewards, terminations))
     }
 
+    /// Observation states and facings for each snake.
     fn states<'py>(&self, py: Python<'py>) -> PyResult<(Vec<BoundArray3<'py>>, Vec<isize>)> {
         let (raw_states, snake_facings) = states(&self.game);
         let states = raw_states
@@ -155,6 +156,16 @@ impl SnakeGame {
             &self.game.snakes[snake_index],
             relative_move,
         ))
+    }
+
+    fn game_serialized<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        bincode::serialize(&self.game)
+            .map_err(|why| {
+                PyValueError::new_err(format!(
+                    "Error serializing `battlesnake_gym::SnakeGame.game`: `{why}`"
+                ))
+            })
+            .map(|bytes| PyBytes::new_bound(py, &bytes))
     }
 
     // Referencing <https://github.com/light-curve/light-curve-python/pull/145/files>.

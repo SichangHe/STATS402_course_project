@@ -1,0 +1,13 @@
+[package]
+name = "snork-snakes-binding"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "snork_snakes_binding"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = "0.21"
+snork = { version = "0.2", path = "../../snork" }

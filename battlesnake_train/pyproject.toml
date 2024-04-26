@@ -23,7 +23,7 @@ dev-dependencies = [
 ]
 
 [tool.rye.workspace]
-members = [".", "battlesnake_gym"]
+members = [".", "battlesnake_gym", "snork_snakes_binding"]
 
 [tool.hatch.metadata]
 allow-direct-references = true

@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn states(game: &Game) -> (Vec<Array3<f64>>, Vec<isize>) {
+pub fn states(game: &Game) -> (Vec<Array3<f32>>, Vec<isize>) {
     let body_layers = body_layers(game);
     let snake_order = sort_snakes(game);
     let head_values = head_values(game, &snake_order);
@@ -19,11 +19,11 @@ pub fn states(game: &Game) -> (Vec<Array3<f64>>, Vec<isize>) {
 }
 
 /// $v_b:=\frac{2L_{\text{rest of body}}-1}{239}$
-fn body_layers(game: &Game) -> Array3<f64> {
-    let mut body_layers = Array3::<f64>::zeros((N_SNAKES, BOARD_SIZE, BOARD_SIZE));
+fn body_layers(game: &Game) -> Array3<f32> {
+    let mut body_layers = Array3::<f32>::zeros((N_SNAKES, BOARD_SIZE, BOARD_SIZE));
     for (i, snake) in game.snakes.iter().enumerate() {
         for (rest_len, &Vec2D { x, y }) in snake.body.iter().enumerate() {
-            let (rest_len, x, y) = (rest_len as f64, x as usize, y as usize);
+            let (rest_len, x, y) = (rest_len as f32, x as usize, y as usize);
             body_layers[[i, x, y]] = rest_len * 2.0 - 1.0;
         }
     }
@@ -47,7 +47,7 @@ fn sort_snakes(game: &Game) -> [usize; N_SNAKES] {
 }
 
 /// $v_h:=\frac{1+2(L_{\text{opponent}}-L_{\text{us}})}{239}$
-fn head_values(game: &Game, snake_order: &[usize]) -> [[f64; N_SNAKES - 1]; N_SNAKES] {
+fn head_values(game: &Game, snake_order: &[usize]) -> [[f32; N_SNAKES - 1]; N_SNAKES] {
     let mut head_values = [[0.0; N_SNAKES - 1]; N_SNAKES];
     for (you_index, you) in game.snakes.iter().enumerate() {
         for (opponent_index, &snake_index) in snake_order
@@ -56,7 +56,7 @@ fn head_values(game: &Game, snake_order: &[usize]) -> [[f64; N_SNAKES - 1]; N_SN
             .enumerate()
         {
             let opponent = &game.snakes[snake_index];
-            let len_diff = opponent.body.len() as f64 - you.body.len() as f64;
+            let len_diff = opponent.body.len() as f32 - you.body.len() as f32;
             let value = (2.0 * len_diff + 1.0) * HEALTH_NORMALIZATION;
             head_values[you_index][opponent_index] = value;
         }
@@ -73,11 +73,11 @@ fn head_values(game: &Game, snake_order: &[usize]) -> [[f64; N_SNAKES - 1]; N_SN
 fn state(
     game: &Game,
     you_index: usize,
-    body_layers: &Array3<f64>,
+    body_layers: &Array3<f32>,
     snake_order: &[usize],
-    head_values: &[[f64; N_SNAKES - 1]],
-) -> Array3<f64> {
-    let state = Array3::<f64>::zeros((N_LAYERS, PADDED_SIZE, PADDED_SIZE));
+    head_values: &[[f32; N_SNAKES - 1]],
+) -> Array3<f32> {
+    let state = Array3::<f32>::zeros((N_LAYERS, PADDED_SIZE, PADDED_SIZE));
     let you = &game.snakes[you_index];
 
     let (head_x, head_y) = if let Some(&Vec2D {
@@ -117,12 +117,12 @@ where
     DX: Fn(usize) -> usize,
     DY: Fn(usize) -> usize,
 {
-    state: Array3<f64>,
+    state: Array3<f32>,
     game: &'a Game,
     you_index: usize,
-    body_layers: &'a Array3<f64>,
+    body_layers: &'a Array3<f32>,
     snake_order: &'a [usize],
-    head_values: &'a [[f64; N_SNAKES - 1]],
+    head_values: &'a [[f32; N_SNAKES - 1]],
     dx: DX,
     dy: DY,
 }
@@ -212,6 +212,6 @@ fn board_indices() -> itertools::Product<Range<usize>, Range<usize>> {
 }
 
 /// $\frac{101-H_{\text{us}}}{100}$
-fn food_value(health: usize) -> f64 {
-    (101 - health) as f64 / 100.0
+fn food_value(health: usize) -> f32 {
+    (101 - health) as f32 / 100.0
 }

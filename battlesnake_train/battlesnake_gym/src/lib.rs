@@ -36,7 +36,7 @@ const LEFT: isize = 3;
 
 const PADDED_SIZE: usize = BOARD_SIZE * 2 - 1;
 const N_LAYERS: usize = 9;
-const HEALTH_NORMALIZATION: f64 = 1.0 / 239.0;
+const HEALTH_NORMALIZATION: f32 = 1.0 / 239.0;
 
 type BoundArray3<'py> = Bound<'py, PyArray3<f32>>;
 

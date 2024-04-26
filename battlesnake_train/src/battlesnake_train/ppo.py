@@ -15,7 +15,11 @@ from pettingzoo import ParallelEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common import utils
 from stable_baselines3.common.buffers import RolloutBuffer
-from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.callbacks import (
+    BaseCallback,
+    CallbackList,
+    ConvertCallback,
+)
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.type_aliases import MaybeCallback, Schedule
 from stable_baselines3.common.utils import obs_as_tensor
@@ -24,6 +28,7 @@ from torch import Tensor
 from battlesnake_train.buf import GrowableRolloutBuffer
 from battlesnake_train.disk import all_prev_models, find_last_model
 from battlesnake_train.dummy import DummyVecEnv
+from battlesnake_train.progress import DynPPOProgressBarCallback
 
 
 @dataclass
@@ -146,7 +151,7 @@ class DynPPO:
         seed: Optional[int] = None,
         device: Union[th.device, str] = "auto",
         _init_setup_model: bool = True,
-        trial_index: int = 0,
+        trial_index: int = -1,
         save_model_name: str = "dyn-ppo",
         saved_model_regex: re.Pattern | None = None,
         ppo: PPO | None = None,
@@ -226,7 +231,7 @@ class DynPPO:
         """
         self._find_prev_models()
 
-        for trial in range(self.trial_index, self.trial_index + n_trial):
+        for trial in range(self.trial_index + 1, self.trial_index + 1 + n_trial):
             self.trial_index = trial
             self.learn(
                 n_timestep_per_trial,
@@ -367,6 +372,34 @@ class DynPPO:
         for agent in self.agents:
             self._last_episode_starts[agent] = True
             self.rollout_buffer_cache[agent].clear()
+
+    def _init_callback(
+        self,
+        callback: MaybeCallback,
+        progress_bar: bool = False,
+    ) -> BaseCallback:
+        """Modified
+        `stable_baselines3.common.base_class.BaseAlgorithm._init_callback`
+        to use the corrected progress bar implementation.
+
+        :param callback: Callback(s) called at every step with state of the algorithm.
+        :param progress_bar: Display a progress bar using tqdm and rich.
+        :return: A hybrid callback calling `callback` and performing evaluation.
+        """
+        # Convert a list of callbacks into a callback
+        if isinstance(callback, list):
+            callback = CallbackList(callback)
+
+        # Convert functional callback to object
+        if not isinstance(callback, BaseCallback):
+            callback = ConvertCallback(callback)
+
+        # Add progress bar callback
+        if progress_bar:
+            callback = CallbackList([callback, DynPPOProgressBarCallback()])
+
+        callback.init_callback(self.ppo)
+        return callback
 
     def collect_rollouts(
         self,

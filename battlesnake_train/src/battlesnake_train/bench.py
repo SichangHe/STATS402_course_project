@@ -41,6 +41,8 @@ def benchmark(model: DynPPO, depth: int, num_games: int):
                 last_done_agents.append(agent)
             cummulative_done[agent] = prev_done or done
 
+    return n_game_model_won
+
 
 def choose_tree_agents():
     tree_agent_chosens: list[bool] = []

@@ -38,7 +38,7 @@ const PADDED_SIZE: usize = BOARD_SIZE * 2 - 1;
 const N_LAYERS: usize = 9;
 const HEALTH_NORMALIZATION: f64 = 1.0 / 239.0;
 
-type BoundArray3<'py> = Bound<'py, PyArray3<f64>>;
+type BoundArray3<'py> = Bound<'py, PyArray3<f32>>;
 
 #[pyclass]
 #[derive(Clone, Debug, Deserialize, Serialize)]

@@ -661,9 +661,8 @@ class DynPPO:
         )
         if trial_index is None:
             trial_and_model = find_last_model(saved_model_regex)
-            assert (
-                trial_and_model is not None
-            ), f"No previous model for `{save_model_name}` found in the current directory."
+            if trial_and_model is None:
+                return None
             trial_index = trial_and_model[0]
             model_file = trial_and_model[1]
         else:

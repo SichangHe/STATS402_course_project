@@ -6,6 +6,7 @@ from snork_snakes_binding import SnorkTreeAgent
 
 env = BattlesnakeEnv()
 model = DynPPO.load_trial(env, save_model_name="dyn-ppo20prev-mlp-battlesnake")
+assert model is not None
 print(f"Model trial index: {model.trial_index}.")
 tree_agent = SnorkTreeAgent()
 cummulative_done = {a: True for a in env.agents}

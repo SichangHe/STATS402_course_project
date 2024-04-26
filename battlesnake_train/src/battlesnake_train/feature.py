@@ -21,10 +21,11 @@ class VGGFeatureExtractor(BaseFeaturesExtractor):
         features_dim: int = 4096,
     ) -> None:
         super().__init__(observation_space, features_dim)
-
         self.features = make_vgg_feature_net(observation_space)
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
         self.linear = nn.Sequential(
+            # FIXME: 7 is because 224 // 2 // 2 // 2 // 2 // 2,
+            # but we have 21 // ?
             nn.Linear(512 * 7 * 7, features_dim),
             nn.ReLU(True),
             nn.Dropout(),
@@ -73,3 +74,14 @@ def make_vgg_feature_net(observation_space: spaces.Box):
             layers.append(nn.ReLU(True))
             in_channels = out_channels
     return nn.Sequential(*layers)
+
+
+VGG16_CLASSIFIER_NET_ARCH: Final = [4096]
+"""Only one layer because the feature extractor already has one."""
+
+
+def vgg16_classifier_activation_fn():
+    return nn.Sequential(
+        nn.ReLU(True),
+        nn.Dropout(),
+    )

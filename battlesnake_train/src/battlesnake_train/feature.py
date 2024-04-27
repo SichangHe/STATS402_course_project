@@ -48,11 +48,11 @@ class VGGFeatureExtractor(BaseFeaturesExtractor):
         )
 
     def forward(self, observations: th.Tensor) -> th.Tensor:
-        # observations: (batch_size, 9, 21, 21)
-        x = self.features(observations)  # (batch_size, 256, 2, 2)
+        x = observations  # (batch_size, 9, 21, 21)
+        x = self.features(x)  # (batch_size, 256, 2, 2)
         x = self.avgpool(x)
         x = th.flatten(x, 1)  # (batch_size, 256 * 2 * 2)
-        x += self.residual(observations)
+        x = x + self.residual(observations)
         return x
 
 
@@ -132,7 +132,7 @@ class DeepMLPFeatureExtractor(BaseFeaturesExtractor):
         x = self.fit_shape(observations)
         residual = x
         x = self.net(x)
-        x += residual
+        x = x + residual
         return x
 
 

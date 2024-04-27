@@ -108,3 +108,34 @@ def vgg_classifier_activation_fn():
         nn.ReLU(True),
         nn.Dropout(),
     )
+
+
+class DeepMLPFeatureExtractor(BaseFeaturesExtractor):
+    def __init__(
+        self, observation_space: spaces.Box, features_dim: int = 1024, n_layer: int = 4
+    ):
+        super().__init__(observation_space, features_dim)
+        in_features = 1
+        for dim in observation_space.shape:
+            in_features *= dim
+        self.fit_shape = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(in_features, features_dim),
+        )
+        layers: list[nn.Module] = []
+        for _ in range(n_layer):
+            layers.append(nn.Linear(features_dim, features_dim))
+            layers.append(nn.ReLU(True))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, observations: th.Tensor) -> th.Tensor:
+        x = self.fit_shape(observations)
+        residual = x
+        x = self.net(x)
+        x += residual
+        return x
+
+
+DEEP_MLP_CLASSIFIER_NET_ARCH: Final = [512, 256]
+
+deep_mlp_classifier_activation_fn = vgg_classifier_activation_fn

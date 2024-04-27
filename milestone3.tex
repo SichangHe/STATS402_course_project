@@ -48,9 +48,59 @@ Battlesnake~\cite{battlesnake}.
     You need to explain the reason for the change.
 }
 
+% TODO: Cite VGG and PyTorch.
+We constructed convolutional neural network (CNN) layers for feature extraction,
+referencing the VGG16 model.
+Our feature layers consist of the first 7 convolutional layers,
+the first 3 max-pooling layers, and the adaptive average layer in VGG16,
+incrementally compressing the input feature matrices from $\mathbb R^{9\times
+            21\times 21}$ to $\mathbb R^{256\times 2\times 2}$.
+The features are then flattened and fed into 3-layer MLPs with hidden layer
+widths 256 for either policy or value networks.
+
+We constructed a shallower and thinner model than the VGG16 model primarily for
+two reasons: our feature matrices are smaller,
+and our compute resources are limited.
+We only used the first 3 max-pooling layers because our feature matrices have
+width 21 instead of the 224 in VGG16. That is,
+after all 5 max-pooling layers with kernel size 2 in VGG16,
+the feature matrices would be compressed from width 224 to 7; in comparison,
+our feature matrices are compressed from width 21 to 2 after 3 similar
+max-pooling layers.
+Additionally, we believe that the game board of Battlesnake is simple enough,
+that $256\times 2\times 2=1024$ numbers are sufficient to extract the features,
+and MLP layers with width 256 are sufficient to learn these smaller features.
+
 \section{Existing Results}
 
 \todo{Demonstrate all the existing results you obtained.}
+
+The VGG-like model took around 2000 seconds to train for $16^4$ steps using all
+CPU cores on the aforementioned server,
+about 10 times longer than the MLP model.
+
+Although we worried about the size of the model impacting the inference speed,
+inference only took less than 1.0 millisecond and 600\,MiB of RAM on the default
+Duke VM. Therefore,
+we believe inference speed is not a bottleneck even on compute-constrained
+environments,
+but the size of the model will become a bottleneck when RAM is limited.
+As a conclusion,
+larger and more resource-intensive models like transformer are likely feasible,
+with training speed being a bottleneck.
+
+The VGG-like model performed poorly,
+even after we added a two-layer MLP as the residual layer,
+and trained for $24 \times 16^4$ steps. During manual inspection,
+the model cannot even consistently avoid walls,
+which we consider a rudimentary learning task.
+We suspect that the convolutional layers loose the positional information,
+which is particularly significant in our case because our feature extraction
+steps center the snake's head in the feature matrices. However,
+another great possibility is the model requires much more training steps due to
+its significantly larger size.
+
+% TODO: Discuss how many steps are needed, referring to the Medium article.
 
 \section{Final Report Plan}
 

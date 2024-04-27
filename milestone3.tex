@@ -99,7 +99,7 @@ larger and more resource-intensive models like transformer are likely feasible,
 with the training process being the major bottleneck.
 
 The VGG-like model performed poorly, even after we added the residual layer,
-and trained for $24 \times 16^4$ steps. During manual inspection,
+and trained for $34 \times 16^4$ steps. During manual inspection,
 the model cannot even consistently avoid walls,
 which we consider a rudimentary learning task.
 We suspect that the convolutional layers loose the positional information,
@@ -153,6 +153,9 @@ processors. Training for $16^5$ steps took 3777 seconds,
 longer than the 3060 seconds the previous implementation took. However,
 we note that the previous training was counting padding steps,
 meaning that the new implementation has effectively trained more steps.
+
+dyn-ppo-deep-mlp-battlesnake2.model converged to go in a tight circle by keep
+turning left, and all future models remained so.
 
 \printbibliography
 

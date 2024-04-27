@@ -71,6 +71,15 @@ Additionally, we believe that the game board of Battlesnake is simple enough,
 that $256\times 2\times 2=1024$ numbers are sufficient to extract the features,
 and MLP layers with width 256 are sufficient to learn these smaller features.
 
+After initial testing, the VGG-like model performed poorly,
+therefore we added a residual layer to it.
+Our reasoning is the CNN layers may lose the positional information,
+e.g., the snake's head is always at the center of the feature matrices;
+also, the network's larger depth might result in the vanishing gradient problem.
+The residual is a 2-layer MLP with hidden layer of width 2048,
+transforming the input features from $\mathbb R^{9\times 21\times 21}$ to
+$\mathbb R^{1024}$ before adding them to the output of the CNN layers.
+
 \section{Existing Results}
 
 \todo{Demonstrate all the existing results you obtained.}
@@ -87,10 +96,9 @@ environments,
 but the size of the model will become a bottleneck when RAM is limited.
 As a conclusion,
 larger and more resource-intensive models like transformer are likely feasible,
-with training speed being a bottleneck.
+with the training process being the major bottleneck.
 
-The VGG-like model performed poorly,
-even after we added a two-layer MLP as the residual layer,
+The VGG-like model performed poorly, even after we added the residual layer,
 and trained for $24 \times 16^4$ steps. During manual inspection,
 the model cannot even consistently avoid walls,
 which we consider a rudimentary learning task.

@@ -4,6 +4,7 @@ import torch as th
 from gymnasium import spaces
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from torch import nn
+from torchvision.models import VisionTransformer
 
 
 class VGGFeatureExtractor(BaseFeaturesExtractor):
@@ -139,3 +140,47 @@ class DeepMLPFeatureExtractor(BaseFeaturesExtractor):
 DEEP_MLP_CLASSIFIER_NET_ARCH: Final = [512, 256]
 
 deep_mlp_classifier_activation_fn = vgg_classifier_activation_fn
+
+
+class ViTFeatureExtractor(BaseFeaturesExtractor):
+    def __init__(
+        self,
+        observation_space: spaces.Box,
+        features_dim: int = 1024,
+        patch_size: int = 7,
+        num_layers: int = 4,
+        num_heads=4,
+        hidden_dim=256,
+        mlp_dim=512,
+    ):
+        super().__init__(observation_space, features_dim)
+        space_shape = observation_space.shape
+        in_channels = space_shape[0]  # 9
+        assert len(space_shape) == 3, "Input should be 3D."
+        assert space_shape[1] == space_shape[2], "Input should be square."
+        image_size = space_shape[1]  # 21
+        self.vision_transformer = VisionTransformer(
+            image_size,
+            patch_size,
+            num_layers,
+            num_heads,
+            hidden_dim,
+            mlp_dim,
+            num_classes=features_dim,
+        )
+        # Hack to make `VisionTransformer` work with `in_channels` != 3,
+        # which is assumed at
+        # <https://github.com/pytorch/vision/blob/89d2b38cbc3254ed7ed7b43393e4635979ac12eb/torchvision/models/vision_transformer.py#L209>.
+        self.vision_transformer.conv_proj = nn.Conv2d(
+            in_channels, hidden_dim, patch_size, patch_size
+        )
+
+    def forward(self, observations: th.Tensor) -> th.Tensor:
+        x = observations
+        x = self.vision_transformer(x)
+        return x
+
+
+VIT_CLASSIFIER_NET_ARCH: Final = [512, 256]
+
+vit_classifier_activation_fn = vgg_classifier_activation_fn

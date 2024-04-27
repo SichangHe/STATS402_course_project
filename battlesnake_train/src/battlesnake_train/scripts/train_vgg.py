@@ -11,7 +11,7 @@ from battlesnake_train.feature import (
 from battlesnake_train.ppo import DynPPO
 
 env = BattlesnakeEnv()
-model = DynPPO.load_trial(env, save_model_name="dyn-ppo-vgg16-battlesnake")
+model = DynPPO.load_trial(env, save_model_name="dyn-ppo-vgg-mod-battlesnake")
 if model is None:
     policy_kwargs = dict(
         features_extractor_class=VGGFeatureExtractor,
@@ -21,7 +21,7 @@ if model is None:
     model = DynPPO(
         MlpPolicy,
         env,
-        save_model_name="dyn-ppo-vgg16-battlesnake",
+        save_model_name="dyn-ppo-vgg-mod-battlesnake",
         policy_kwargs=policy_kwargs,
         verbose=1,
     )

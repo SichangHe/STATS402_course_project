@@ -8,34 +8,51 @@ from torch import nn
 
 class VGGFeatureExtractor(BaseFeaturesExtractor):
     """
-    VGG16 based on `torchvision.models.vgg.vgg16`.
+    Based on `torchvision.models.vgg.vgg16`, with 2 fewer max-pool layers and
+    an additional residual layer.
 
     :param observation_space:
-    :param features_dim: Number of features extracted.
+    :param features_dim: *Ignored*. Fixed at 1024.
+        Number of features extracted.
         This corresponds to the number of unit for the last layer.
+    :param in_width: Width of the input image.
+    :param residual_layer_width: Width of the residual layer.
     """
 
     def __init__(
         self,
         observation_space: spaces.Box,
-        features_dim: int = 512,
+        features_dim: int = 1024,
+        in_width: int = 21,
+        residual_layer_width: int = 2048,
     ) -> None:
+        features_dim = 1024
+        in_channels = observation_space.shape[0]  # 9
         super().__init__(observation_space, features_dim)
-        self.features = make_vgg_feature_net(observation_space)
+
+        self.features = make_vgg_feature_net(in_channels)
+        feature_width = vgg_out_width(in_width)  # 2
         self.avgpool = nn.AdaptiveAvgPool2d((2, 2))
-        self.linear = nn.Sequential(
-            # In VGG the width is 7 is because 224 // 2 // 2 // 2 // 2 // 2 from
-            # the max-pooling, but we have 21 // 2 // 2 // 2 = 2.
-            nn.Linear(256 * 2 * 2, features_dim),
+        self.residual = nn.Sequential(
+            nn.Flatten(1),  # -> (batch_size, 3969)
+            nn.Linear(
+                in_channels * in_width * in_width,  # 3969
+                residual_layer_width,
+            ),
+            nn.Linear(
+                residual_layer_width,
+                256 * feature_width * feature_width,  # 1024
+            ),
             nn.ReLU(True),
             nn.Dropout(),
         )
 
     def forward(self, observations: th.Tensor) -> th.Tensor:
+        # observations: (batch_size, 9, 21, 21)
         x = self.features(observations)  # (batch_size, 256, 2, 2)
         x = self.avgpool(x)
-        x = th.flatten(x, 1)  # (batch_size, 1024)
-        x = self.linear(x)
+        x = th.flatten(x, 1)  # (batch_size, 256 * 2 * 2)
+        x += self.residual(observations)
         return x
 
 
@@ -61,8 +78,7 @@ N_OUT_CHANNELS_LIST: Final[list[int | None]] = [
 ]
 
 
-def make_vgg_feature_net(observation_space: spaces.Box):
-    in_channels = observation_space.shape[0]
+def make_vgg_feature_net(in_channels: int):
     layers: list[nn.Module] = []
     for out_channels in N_OUT_CHANNELS_LIST:
         if out_channels is None:
@@ -76,8 +92,15 @@ def make_vgg_feature_net(observation_space: spaces.Box):
     return nn.Sequential(*layers)
 
 
-VGG_CLASSIFIER_NET_ARCH: Final = [256]
-"""Only one layer because the feature extractor already has one."""
+def vgg_out_width(in_width: int):
+    out_width = in_width
+    for out_channels in N_OUT_CHANNELS_LIST:
+        if out_channels is None:
+            out_width //= 2
+    return out_width
+
+
+VGG_CLASSIFIER_NET_ARCH: Final = [256, 256]
 
 
 def vgg_classifier_activation_fn():

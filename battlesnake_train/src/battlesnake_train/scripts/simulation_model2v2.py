@@ -7,9 +7,9 @@ from battlesnake_train.ppo import DynPPO
 
 env = BattlesnakeEnv()
 model0 = DynPPO.load_trial(
-    env, save_model_name="dyn-ppo20prev-mlp-battlesnake", trial_index=0
+    env, save_model_name="dyn-ppo20prev-mlp-battlesnake", trial_index=1
 )
-model1 = DynPPO.load_trial(env, save_model_name="dyn-ppo-vgg16-battlesnake")
+model1 = DynPPO.load_trial(env, save_model_name="dyn-ppo-vgg-mod-battlesnake")
 assert model0 is not None
 assert model1 is not None
 print(

@@ -32,9 +32,9 @@ class VGGFeatureExtractor(BaseFeaturesExtractor):
         )
 
     def forward(self, observations: th.Tensor) -> th.Tensor:
-        x = self.features(observations)
+        x = self.features(observations)  # (batch_size, 256, 2, 2)
         x = self.avgpool(x)
-        x = th.flatten(x, 1)
+        x = th.flatten(x, 1)  # (batch_size, 1024)
         x = self.linear(x)
         return x
 

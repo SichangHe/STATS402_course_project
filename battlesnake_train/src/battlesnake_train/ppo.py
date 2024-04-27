@@ -634,6 +634,9 @@ class DynPPO:
         :return: the model's action and the next hidden state
             (used in recurrent policies)
         """
+        if len(observations) == 0:
+            return {}, state
+
         obs = np.asarray([observation for _, observation in observations.items()])
         action, next_state = self.ppo.predict(obs, state, episode_start, deterministic)
         return {

@@ -1,31 +1,18 @@
-"""Mostly copied from `train_vgg`."""
-
 from time import sleep, time
 
 from stable_baselines3.ppo import MlpPolicy
 
 from battlesnake_gym import BattlesnakeEnv
-from battlesnake_train.feature import (
-    DEEP_MLP_CLASSIFIER_NET_ARCH,
-    DeepMLPFeatureExtractor,
-    deep_mlp_classifier_activation_fn,
-)
 from battlesnake_train.ppo import DynPPO
 
 env = BattlesnakeEnv()
-model = DynPPO.load_trial(env, save_model_name="deep-mlp-ent", ent_coef=0.1)
+model = DynPPO.load_trial(env, save_model_name="mlp-ent", ent_coef=0.1)
 if model is None:
-    policy_kwargs = dict(
-        features_extractor_class=DeepMLPFeatureExtractor,
-        net_arch=DEEP_MLP_CLASSIFIER_NET_ARCH,
-        activation_fn=deep_mlp_classifier_activation_fn,
-    )
     model = DynPPO(
         MlpPolicy,
         env,
-        save_model_name="deep-mlp-ent",
+        save_model_name="dyn-ppo-vgg-mod-battlesnake",
         ent_coef=0.1,
-        policy_kwargs=policy_kwargs,
         verbose=1,
     )
 

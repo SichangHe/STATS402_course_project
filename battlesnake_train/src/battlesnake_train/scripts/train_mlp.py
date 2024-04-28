@@ -11,7 +11,7 @@ if model is None:
     model = DynPPO(
         MlpPolicy,
         env,
-        save_model_name="dyn-ppo-vgg-mod-battlesnake",
+        save_model_name="mlp-ent",
         ent_coef=0.1,
         verbose=1,
     )

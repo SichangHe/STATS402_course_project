@@ -118,8 +118,31 @@ its significantly larger size.
 
 % TODO: Discuss how many steps are needed, referring to the Medium article.
 
+If trained without any entropy bonus,
+larger models have a tendency to instruct the snake to spin in a circle.
 The deeper MLP model converged to go in a tight circle by keep turning left,
 after less than $3\times 16^4$ steps, and all future models remained so.
+Similarly,
+it is observed that the ViT model stays in a tight left-turn circle when the
+snake gets into certain positions,
+after the model is trained for $72\times 16^4$ steps.
+Convergence to spinning happens because of lack of exploration.
+At the beginning of training,
+the model cannot avoid walls or other snakes consistently,
+therefore spinning produces better results than moving around because it avoids
+running into walls or snakes, despite making the snake starve to death.
+Since there is no entropy bonus,
+the model never has a chance to explore better moves,
+and eventually converges to spinning.
+
+\begin{figure}
+    \centering
+    % TODO: \includegraphics[width=0.4\linewidth]{deep_mlp_spin_render.png}\quad
+    \includegraphics[width=0.4\linewidth]{vit_spin_render.png}
+    \caption{TODO
+    }
+    \label{fig:render}
+\end{figure}
 
 \section{Final Report Plan}
 

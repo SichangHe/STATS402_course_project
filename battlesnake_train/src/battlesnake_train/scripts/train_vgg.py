@@ -25,6 +25,7 @@ if model is None:
         policy_kwargs=policy_kwargs,
         verbose=1,
     )
+
 print(f"Model trial index: {model.trial_index}.")
 model.learn_trials(100, 0x10_000, log_interval=0x100, progress_bar=True)
 

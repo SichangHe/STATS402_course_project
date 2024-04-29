@@ -13,7 +13,7 @@ from battlesnake_train.feature import (
 from battlesnake_train.ppo import DynPPO
 
 env = BattlesnakeEnv()
-model = DynPPO.load_trial(env, save_model_name="deep-mlp-ent", ent_coef=0.1)
+model = DynPPO.load_trial(env, save_model_name="deep-mlp-2ent", ent_coef=0.01)
 if model is None:
     policy_kwargs = dict(
         features_extractor_class=DeepMLPFeatureExtractor,
@@ -23,8 +23,8 @@ if model is None:
     model = DynPPO(
         MlpPolicy,
         env,
-        save_model_name="deep-mlp-ent",
-        ent_coef=0.1,
+        save_model_name="deep-mlp-2ent",
+        ent_coef=0.01,
         policy_kwargs=policy_kwargs,
         verbose=1,
     )

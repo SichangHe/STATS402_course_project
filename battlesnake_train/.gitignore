@@ -10,5 +10,5 @@ wheels/
 .venv
 
 # Scalene
-profile.html
+profile*.html
 profile.json

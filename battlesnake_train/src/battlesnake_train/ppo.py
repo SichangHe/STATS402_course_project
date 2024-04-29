@@ -214,7 +214,6 @@ class DynPPO:
             {}
         )
         self.prev_trials_picked: list[list[int]] = []
-        self.original_policy = None
 
     def learn_trials(
         self,

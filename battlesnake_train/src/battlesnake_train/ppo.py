@@ -767,3 +767,38 @@ class DynPPO:
         path = path or f"{self.save_model_name}{self.trial_index}.model"
         self.ppo.save(path, exclude, include)
         return path
+
+
+def main() -> None:
+    """For benchmarking."""
+    from stable_baselines3.ppo import MlpPolicy
+
+    from battlesnake_gym import BattlesnakeEnv
+    from battlesnake_train.feature import (
+        VIT_CLASSIFIER_NET_ARCH,
+        ViTFeatureExtractor,
+        vit_classifier_activation_fn,
+    )
+
+    env = BattlesnakeEnv()
+    model = DynPPO.load_trial(env, save_model_name="vit-2ent-for-bench", ent_coef=0.01)
+    if model is None:
+        policy_kwargs = dict(
+            features_extractor_class=ViTFeatureExtractor,
+            net_arch=VIT_CLASSIFIER_NET_ARCH,
+            activation_fn=vit_classifier_activation_fn,
+        )
+        model = DynPPO(
+            MlpPolicy,
+            env,
+            save_model_name="vit-2ent-for-bench",
+            ent_coef=0.01,
+            policy_kwargs=policy_kwargs,
+            verbose=1,
+        )
+
+    print(f"Model trial index: {model.trial_index}.")
+    model.learn_trials(1, 0x10_000, log_interval=0x100, progress_bar=True)
+
+
+main() if __name__ == "__main__" else None

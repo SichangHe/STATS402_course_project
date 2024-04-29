@@ -8,3 +8,7 @@ wheels/
 
 # venv
 .venv
+
+# Scalene
+profile.html
+profile.json

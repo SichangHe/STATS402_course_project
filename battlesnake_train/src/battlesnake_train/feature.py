@@ -175,6 +175,7 @@ class ViTFeatureExtractor(BaseFeaturesExtractor):
             in_channels, hidden_dim, patch_size, patch_size
         )
 
+    @th.compile
     def forward(self, observations: th.Tensor) -> th.Tensor:
         x = observations
         x = self.vision_transformer(x)

@@ -154,7 +154,6 @@ class DynPPO:
         trial_index: int = -1,
         save_model_name: str = "dyn-ppo",
         saved_model_regex: re.Pattern | None = None,
-        compile_policy: bool = True,
         ppo: PPO | None = None,
     ):
         if policy is None:
@@ -203,7 +202,6 @@ class DynPPO:
             save_model_name + r"(\d+)\.model"
         )
         self.trial_index = trial_index
-        self.compile_policy = compile_policy
         # Note: Should be `AgentID` not `int`, but who cares.
         self.agents: list[int] = env.possible_agents
         self.rollout_buffer_cache: dict[int, list[RolloutBufferCacheItem]] = {
@@ -216,10 +214,7 @@ class DynPPO:
             {}
         )
         self.prev_trials_picked: list[list[int]] = []
-
-    def _compile_policy(self):
-        if not isinstance(self.ppo.policy, th._dynamo.eval_frame.OptimizedModule):
-            self.ppo.policy = th.compile(self.ppo.policy)  # type: ignore[reportAttributeAccessIssue]
+        self.original_policy = None
 
     def learn_trials(
         self,
@@ -329,9 +324,6 @@ class DynPPO:
         :param progress_bar: Display a progress bar using tqdm and rich.
         :return: Total timesteps and callback(s)
         """
-        if self.compile_policy:
-            self._compile_policy()
-
         self.ppo.start_time = time.time_ns()
 
         if self.ppo.ep_info_buffer is None or reset_num_timesteps:
@@ -661,7 +653,6 @@ class DynPPO:
         trial_index: int | None = None,
         save_model_name: str = "dyn-ppo",
         saved_model_regex: re.Pattern | None = None,
-        compile_policy: bool = True,
         device: Union[th.device, str] = "auto",
         custom_objects: Optional[Dict[str, Any]] = None,
         print_system_info: bool = False,
@@ -692,7 +683,6 @@ class DynPPO:
             trial_index=trial_index,
             save_model_name=save_model_name,
             saved_model_regex=saved_model_regex,
-            compile_policy=compile_policy,
             **kwargs,
         )
 
@@ -708,7 +698,6 @@ class DynPPO:
         trial_index: int = 0,
         save_model_name: str = "dyn-ppo",
         saved_model_regex: re.Pattern | None = None,
-        compile_policy: bool = True,
         rollout_buffer_class: Optional[Type[RolloutBuffer]] = GrowableRolloutBuffer,
         **kwargs,
     ):
@@ -757,7 +746,6 @@ class DynPPO:
             trial_index=trial_index,
             save_model_name=save_model_name,
             saved_model_regex=saved_model_regex,
-            compile_policy=compile_policy,
             ppo=ppo,
         )
 

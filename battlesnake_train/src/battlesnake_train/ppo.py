@@ -154,6 +154,7 @@ class DynPPO:
         trial_index: int = -1,
         save_model_name: str = "dyn-ppo",
         saved_model_regex: re.Pattern | None = None,
+        prev_model_cache_size: int = 32,
         ppo: PPO | None = None,
     ):
         if policy is None:
@@ -202,6 +203,7 @@ class DynPPO:
             save_model_name + r"(\d+)\.model"
         )
         self.trial_index = trial_index
+        self.prev_model_cache_size = prev_model_cache_size
         # Note: Should be `AgentID` not `int`, but who cares.
         self.agents: list[int] = env.possible_agents
         self.rollout_buffer_cache: dict[int, list[RolloutBufferCacheItem]] = {
@@ -210,9 +212,8 @@ class DynPPO:
         self._last_observations: dict[int, NDArray] = {}
         self._last_episode_starts: dict[int, bool] = {a: True for a in self.agents}
         self.prev_trials: list[int] = []
-        self.prev_models: dict[int, DynPPO | str | pathlib.Path | io.BufferedIOBase] = (
-            {}
-        )
+        self.prev_models: dict[int, str | pathlib.Path | io.BufferedIOBase] = {}
+        self.prev_model_cache: dict[int, DynPPO] = {}
         self.prev_trials_picked: list[list[int]] = []
 
     def learn_trials(
@@ -592,18 +593,22 @@ class DynPPO:
                     if random.random() < self.p_use_older_version:
                         trial = random.choice(self.prev_trials)
                         trials_picked.append(trial)
-                        maybe_dyn_ppo = self.prev_models[trial]
-                        if isinstance(maybe_dyn_ppo, DynPPO):
-                            agents[agent] = maybe_dyn_ppo
-                        else:
+                        maybe_dyn_ppo = self.prev_model_cache.get(trial)
+                        if maybe_dyn_ppo is None:
                             dyn_ppo = DynPPO.load(
-                                maybe_dyn_ppo,
+                                self.prev_models[trial],
                                 self.env,
                                 self.ppo.device,
                                 force_reset=False,
                             )
-                            self.prev_models[trial] = dyn_ppo
-                            agents[agent] = dyn_ppo
+                            self.prev_model_cache[trial] = dyn_ppo
+                            if len(self.prev_model_cache) > self.prev_model_cache_size:
+                                # Full. Randomly evict.
+                                key = next(iter(self.prev_model_cache.keys()))
+                                del self.prev_model_cache[key]
+                        else:
+                            dyn_ppo = maybe_dyn_ppo
+                        agents[agent] = dyn_ppo
 
                 if len(agents) < len(self.agents):
                     break
@@ -652,6 +657,7 @@ class DynPPO:
         trial_index: int | None = None,
         save_model_name: str = "dyn-ppo",
         saved_model_regex: re.Pattern | None = None,
+        prev_model_cache_size: int = 8,
         device: Union[th.device, str] = "auto",
         custom_objects: Optional[Dict[str, Any]] = None,
         print_system_info: bool = False,
@@ -682,6 +688,7 @@ class DynPPO:
             trial_index=trial_index,
             save_model_name=save_model_name,
             saved_model_regex=saved_model_regex,
+            prev_model_cache_size=prev_model_cache_size,
             **kwargs,
         )
 
@@ -697,6 +704,7 @@ class DynPPO:
         trial_index: int = 0,
         save_model_name: str = "dyn-ppo",
         saved_model_regex: re.Pattern | None = None,
+        prev_model_cache_size: int = 8,
         rollout_buffer_class: Optional[Type[RolloutBuffer]] = GrowableRolloutBuffer,
         **kwargs,
     ):
@@ -745,6 +753,7 @@ class DynPPO:
             trial_index=trial_index,
             save_model_name=save_model_name,
             saved_model_regex=saved_model_regex,
+            prev_model_cache_size=prev_model_cache_size,
             ppo=ppo,
         )
 

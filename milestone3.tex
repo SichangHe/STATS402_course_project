@@ -95,12 +95,17 @@ In our inspections,
 we found that the model does not seem to be interested in eating food,
 so we added a tiny reward bonus $R_e$ for eating food:
 $$
-R_e = f_e(101 - h)
+    R_e = f_e(101 - h)
 $$
 where $f_e:=10^{-6}$ is a scaling factor and $h\in\{1,\ldots,100\}$ is the
 snake's health before eating.
 The rationale is to encourage the snake to eat food when its health is low,
 since having a higher health give the snake more chances to survive.
+
+We decided to continue training the previous models after fixing loading the
+previous models and added the food reward.
+We continued training the big ViT model trained for $108\times 16^4$ steps,
+and the small ViT model trained $192\times 16^4$ steps.
 
 \section{Existing Results}
 

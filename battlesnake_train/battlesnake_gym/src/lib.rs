@@ -27,6 +27,7 @@ const N_SNAKES: usize = 4;
 const WIN_REWARD: f64 = 1.0;
 const LOSE_REWARD: f64 = -1.0;
 const SURVIVE_ROUND_REWARD: f64 = 0.002;
+const EATING_REWARD_FACTOR: f64 = 0.000_001;
 
 // Clockwise, opposite to `np.rot90`.
 const UP: isize = 0;
@@ -46,6 +47,7 @@ struct SnakeGame {
     pub game: Game,
     pub rng: ChaCha8Rng,
     pub food_count: u16,
+    pub eating_reward_factor: f64,
 }
 
 #[pymethods]
@@ -58,6 +60,7 @@ impl SnakeGame {
             game,
             rng,
             food_count: N_SNAKES as u16,
+            eating_reward_factor: EATING_REWARD_FACTOR,
         })
     }
 
@@ -67,11 +70,12 @@ impl SnakeGame {
         Ok(())
     }
 
+    /// Returns (`rewards`, `terminations`).
     fn step(
         &mut self,
         actions: [isize; N_SNAKES],
     ) -> PyResult<([f64; N_SNAKES], [bool; N_SNAKES])> {
-        let alive_before: Vec<_> = self.game.snakes.iter().map(|s| s.alive()).collect();
+        let health_before: Vec<_> = self.game.snakes.iter().map(|s| s.health).collect();
 
         // Based on `snork/src/simulate.rs`.
         let mut moves = [Direction::Up; N_SNAKES];
@@ -98,7 +102,7 @@ impl SnakeGame {
                 survivor = i;
                 rewards[i] = SURVIVE_ROUND_REWARD;
                 terminations[i] = false;
-            } else if alive_before[i] {
+            } else if health_before[i] > 0 {
                 // Died this round.
                 rewards[i] = LOSE_REWARD;
             } // Else: already dead last round.
@@ -111,9 +115,10 @@ impl SnakeGame {
             }
             _ => {
                 // Check if snakes have consumed food
-                for snake in &self.game.snakes {
-                    if snake.alive() && snake.health == 100 {
+                for (i, snake) in self.game.snakes.iter().enumerate() {
+                    if snake.health == 100 {
                         self.food_count -= 1;
+                        rewards[i] += eating_reward(self.eating_reward_factor, health_before[i]);
                     }
                 }
 
@@ -175,6 +180,13 @@ impl SnakeGame {
                 ))
             })
             .map(|bytes| PyBytes::new_bound(py, &bytes))
+    }
+
+    /// Eating reward factor $f_e$ in $R_e = f_e(101 - h)$ where
+    /// $h$ is the health of a snake and $R_e$ is the eating reward.
+    fn set_eating_reward_factor(&mut self, eating_reward_factor: f64) -> PyResult<()> {
+        self.eating_reward_factor = eating_reward_factor;
+        Ok(())
     }
 
     // Referencing <https://github.com/light-curve/light-curve-python/pull/145/files>.
@@ -240,6 +252,11 @@ fn snake_relative_move(snake: &Snake, true_move: isize) -> isize {
 
 fn fresh_game<R: RngCore>(rng: &mut R) -> Game {
     init_game(BOARD_SIZE, BOARD_SIZE, N_SNAKES, rng)
+}
+
+/// $R_e = f_e(101 - h)$.
+fn eating_reward(eating_reward_factor: f64, health: u8) -> f64 {
+    ((101 - health) as f64) * eating_reward_factor
 }
 
 const FOOD_RATE: f64 = 0.15;

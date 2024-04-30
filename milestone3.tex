@@ -86,7 +86,21 @@ layer.
 small modified vision transformer (ViT) with patch size 7, 4 encoder layers,
 4 heads, hidden size 256, and MLP size 512.
 
-We realized the default entropy coefficient of 0 in the Stable Baselines3 implementation has been used
+We realized the default entropy coefficient of 0 in the Stable Baselines3
+implementation has been used,
+causing insufficient exploration and convergence to spinning. Therefore,
+we tried different entropy coefficients for the small and big ViT model.
+
+In our inspections,
+we found that the model does not seem to be interested in eating food,
+so we added a tiny reward bonus $R_e$ for eating food:
+$$
+R_e = f_e(101 - h)
+$$
+where $f_e:=10^{-6}$ is a scaling factor and $h\in\{1,\ldots,100\}$ is the
+snake's health before eating.
+The rationale is to encourage the snake to eat food when its health is low,
+since having a higher health give the snake more chances to survive.
 
 \section{Existing Results}
 
@@ -143,6 +157,14 @@ and eventually converges to spinning.
     }
     \label{fig:render}
 \end{figure}
+
+We tried to encourage exploration by adding an entropy bonus to the model.
+However, after setting the entropy coefficient to 0.1,
+our small ViT model could not learn to avoid walls even after training for
+$32\times 16^4$ steps. Therefore,
+we decided to lower the entropy coefficient to 0.01,
+which resulted in our ViT model learning to spin again,
+but reach for food when its health is low.
 
 \section{Final Report Plan}
 

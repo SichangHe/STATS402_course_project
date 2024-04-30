@@ -602,7 +602,7 @@ class DynPPO:
                                 self.ppo.device,
                                 force_reset=False,
                             )
-                            self.prev_models[agent] = dyn_ppo
+                            self.prev_models[trial] = dyn_ppo
                             agents[agent] = dyn_ppo
 
                 if len(agents) < len(self.agents):

@@ -4,6 +4,7 @@ import random
 import re
 import time
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Optional, Type, Union
 
@@ -452,7 +453,11 @@ class DynPPO:
                 self.ppo.policy.reset_noise(self.ppo.batch_size)
 
             clipped_action_map: dict[int, NDArray] = {}
-            for agent, observation in self._last_observations.items():
+
+            def generate_actions(agent: int, observation: NDArray) -> None:
+                # All captures are listed to be safe.
+                nonlocal self, dyn_ppo_agents, clipped_action_map
+
                 dyn_ppo = dyn_ppo_agents.get(agent, self)
                 with th.no_grad():
                     obs_tensor = obs_as_tensor(observation, self.ppo.device)
@@ -493,6 +498,12 @@ class DynPPO:
                     )
                     self.rollout_buffer_cache[agent].append(item)
 
+            with ThreadPoolExecutor() as executor:
+                for _ in executor.map(
+                    generate_actions, *zip(*self._last_observations.items())
+                ):
+                    pass
+
             new_obs, rewards, terminations, truncations, infos = self.env.step(
                 clipped_action_map
             )
@@ -504,7 +515,11 @@ class DynPPO:
                 return False
 
             self._last_observations.clear()
-            for agent, observation in new_obs.items():
+
+            def collect_new_obs(agent: int, observation: NDArray) -> None:
+                # All captures are listed to be safe.
+                nonlocal terminations, truncations, self, done_matrix, dyn_ppo_agents, rollout_buffer, n_steps, last_observation
+
                 observation = observation[np.newaxis, :].copy()
                 done = terminations[agent] or truncations[agent]
                 self._last_episode_starts[agent] = done
@@ -551,6 +566,10 @@ class DynPPO:
                             n_steps += buffer_free_size
                             cache = cache[buffer_free_size:]
                             last_observation = cache[0].observation
+
+            with ThreadPoolExecutor() as executor:
+                for _ in executor.map(collect_new_obs, *zip(*new_obs.items())):
+                    pass
 
             if all(
                 (

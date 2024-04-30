@@ -13,7 +13,7 @@ from battlesnake_train.feature import (
 from battlesnake_train.ppo import DynPPO
 
 env = BattlesnakeEnv()
-model = DynPPO.load_trial(env, save_model_name="vit-big-2ent-6eat", ent_coef=0.01)
+model = DynPPO.load_trial(env, save_model_name="vit-ent2-big", ent_coef=0.01)
 if model is None:
     policy_kwargs = dict(
         features_extractor_class=ViTFeatureExtractor,
@@ -30,7 +30,7 @@ if model is None:
     model = DynPPO(
         MlpPolicy,
         env,
-        save_model_name="vit-big-2ent-6eat",
+        save_model_name="vit-ent2-big",
         ent_coef=0.01,
         policy_kwargs=policy_kwargs,
         verbose=1,

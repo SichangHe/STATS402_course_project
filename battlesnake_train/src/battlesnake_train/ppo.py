@@ -454,10 +454,7 @@ class DynPPO:
 
             clipped_action_map: dict[int, NDArray] = {}
 
-            def generate_actions(agent: int, observation: NDArray) -> None:
-                # All captures are listed to be safe.
-                nonlocal self, dyn_ppo_agents, clipped_action_map
-
+            def generate_actions(agent: int, observation: NDArray):
                 dyn_ppo = dyn_ppo_agents.get(agent, self)
                 with th.no_grad():
                     obs_tensor = obs_as_tensor(observation, self.ppo.device)
@@ -481,8 +478,6 @@ class DynPPO:
                             self.ppo.action_space.high,
                         )
 
-                clipped_action_map[agent] = clipped_action[0]
-
                 if agent not in dyn_ppo_agents:
                     # This agent is `self`.
                     if isinstance(self.ppo.action_space, spaces.Discrete):
@@ -496,13 +491,18 @@ class DynPPO:
                         value,
                         log_prob,
                     )
-                    self.rollout_buffer_cache[agent].append(item)
+                else:
+                    item = None
+
+                return agent, clipped_action, item
 
             with ThreadPoolExecutor() as executor:
-                for _ in executor.map(
+                for agent, clipped_action, item in executor.map(
                     generate_actions, *zip(*self._last_observations.items())
                 ):
-                    pass
+                    clipped_action_map[agent] = clipped_action[0]
+                    if item is not None:
+                        self.rollout_buffer_cache[agent].append(item)
 
             new_obs, rewards, terminations, truncations, infos = self.env.step(
                 clipped_action_map
@@ -515,11 +515,7 @@ class DynPPO:
                 return False
 
             self._last_observations.clear()
-
-            def collect_new_obs(agent: int, observation: NDArray) -> None:
-                # All captures are listed to be safe.
-                nonlocal terminations, truncations, self, done_matrix, dyn_ppo_agents, rollout_buffer, n_steps, last_observation
-
+            for agent, observation in new_obs.items():
                 observation = observation[np.newaxis, :].copy()
                 done = terminations[agent] or truncations[agent]
                 self._last_episode_starts[agent] = done
@@ -566,10 +562,6 @@ class DynPPO:
                             n_steps += buffer_free_size
                             cache = cache[buffer_free_size:]
                             last_observation = cache[0].observation
-
-            with ThreadPoolExecutor() as executor:
-                for _ in executor.map(collect_new_obs, *zip(*new_obs.items())):
-                    pass
 
             if all(
                 (

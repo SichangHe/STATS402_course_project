@@ -13,7 +13,7 @@ from battlesnake_train.feature import (
 from battlesnake_train.ppo import DynPPO
 
 env = BattlesnakeEnv()
-model = DynPPO.load_trial(env, save_model_name="vit-prev-2ent", ent_coef=0.01)
+model = DynPPO.load_trial(env, save_model_name="vit-2ent", ent_coef=0.1)
 if model is None:
     policy_kwargs = dict(
         features_extractor_class=ViTFeatureExtractor,
@@ -23,14 +23,14 @@ if model is None:
     model = DynPPO(
         MlpPolicy,
         env,
-        save_model_name="vit-prev-2ent",
-        ent_coef=0.01,
+        save_model_name="vit-2ent",
+        ent_coef=0.1,
         policy_kwargs=policy_kwargs,
         verbose=1,
     )
 
 print(f"Model trial index: {model.trial_index}.")
-model.learn_trials(100, 0x10_000, log_interval=0x100, progress_bar=True)
+model.learn_trials(1000, 0x10_000, log_interval=0x100, progress_bar=True)
 
 # Simulation.
 cummulative_done = {a: True for a in env.agents}

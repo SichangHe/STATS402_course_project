@@ -9,8 +9,8 @@
 \usepackage{xcolor}
     \newcommand{\todo}[1]{\textcolor{red}{[ #1 ]}}
     \newcommand{\instruction}[1]{\textcolor{orange}{#1}}
-    % \renewcommand{\todo}[1]{} % Uncomment to hide todos.
-    % \renewcommand{\instruction}[1]{} % Uncomment to hide instructions.
+    \renewcommand{\todo}[1]{} % Uncomment to hide todos.
+    \renewcommand{\instruction}[1]{} % Uncomment to hide instructions.
 
 \newcommand{\hidden}[1]{}
 
@@ -20,17 +20,27 @@
     Resource-Constrained Deep Reinforcement Learning for Battlesnake\\
     Milestone Report: Stage 3
 }
-\author{\IEEEauthorblockN{Steven Hé (Sīchàng)}\\
+\author{\IEEEauthorblockN{Steven Hé (Sīchàng)\\
     sichang.he@dukekunshan.edu.cn
-}
+}}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-
-    Battlesnake~\cite{battlesnake}.
-
+    We outlines our efforts to optimize and enhance the performance of our
+    reinforcement learning agents in the Battlesnake game environment.
+    We delve into various aspects of customization,
+    including training loop modifications and exploration of neural network
+    architectures for feature extraction. Additionally,
+    we discuss critical modifications to the training setup aimed at improving
+    model convergence and effectiveness. Despite our rigorous efforts,
+    challenges such as strategy collapse and inefficient exploration persist.
+    To overcome these obstacles,
+    we propose to integrate model predictions with tree search techniques.
+    By detailing our plans for further experimentation and development,
+    we aim to advance the competitiveness of our agents,
+    and test it in the real-world among the Battlesnake community.
 \end{abstract}
 
 \instruction{
@@ -285,19 +295,23 @@ but rather against other models.
 
 \todo{The plan for finalizing your final report.}
 
-Since the training process is the major bottleneck,
-and the models are still not performing well,
-we plan to focus on continue training the small ViT model for more steps,
+To finalize our report, we plan to focus on continue training the small ViT model for more steps,
 while investigating alternatives to allow the model to compete with other agents
 on the leaderboard~\cite{standard_leaderboard}.
+Since the training process is the major bottleneck,
+and the models are still not performing well,
+we have to reach for alternative approaches to improve the model's performance.
 One such solution is to combine the model predictions with tree search,
-similar to the practice in AlphaGo~\cite{silver2016mastering}.
+such as the method applied in AlphaGo~\cite{silver2016mastering}.
 We will use the policy probability outputs from the model to narrow down the
 tree search options.
 
-We will develop a Battlesnake-protocol-compatible web server that implements
-the above solution,
-and test the model against other models on the leaderboard.
+For evaluation,
+we will develop a Battlesnake-protocol-compatible web server that implements the
+above hybrid solution~\cite{battlesnake},
+and test the model against other models on the leaderboard. With this approach,
+we aim to test the model's performance in a real-world scenario and fulfill our
+promise in this direction.
 
 \printbibliography
 

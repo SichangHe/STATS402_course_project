@@ -151,12 +151,14 @@ with hidden layer width 512 and 256.
 Since the ViT model has shown great success in image classification tasks as an
 alternative to CNN models,
 we constructed small and big ViT models for feature extraction.
-Our small ViT has patch size 7, 4 encoder layers, 4 heads, hidden size 256,
+Our small ViT model has patch size 7, 4 encoder layers, 4 heads, hidden size 256,
 and MLP size 512.
 It is modified to override the convolutional kernel to have input channel size 9
 instead of 3,
 because our feature matrices have 9 channels instead of the 3 used in image
 classification.
+Our big ViT model has patch size 3, 8 encoder layers, 8 heads, hidden size 512,
+and MLP size 1024.
 
 \subsection{Training Setup Modifications}
 
@@ -278,6 +280,8 @@ we trained the small ViT model for $587\times 16^4$ steps and the big ViT model
 for $339\times 16^4$ steps (counting previous steps trained). However,
 the small ViT model still has a less intense tendency to spin,
 while neither models can avoid walls or themselves consistently.
+Training the small ViT model for $16^4$ steps on an RTX 3090 takes around 580s,
+and training the big ViT model for $16^4$ steps takes around 1300s.
 We note that the major bottleneck in training is the training efficiency and
 getting enough training steps for the model to converge.
 

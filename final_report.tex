@@ -388,7 +388,7 @@ with hidden layer width 512 and 256.
 \paragraph{Vision Transformer (ViT) Models}
 Since the ViT model has shown great success in image classification tasks as an
 alternative to CNN models,
-we constructed small and big ViT models for feature extraction.
+we constructed small, big, and tiny ViT models for feature extraction.
 Our small ViT model has patch size 7, 4 encoder layers, 4 heads, hidden size 256,
 and MLP size 512.
 It is modified to override the convolutional kernel to have input channel size 9
@@ -397,6 +397,8 @@ because our feature matrices have 9 channels instead of the 3 used in image
 classification.
 Our big ViT model has patch size 3, 8 encoder layers, 8 heads, hidden size 512,
 and MLP size 1024.
+Our tiny ViT model has patch size 7, 2 encoder layers, 1 heads, hidden size 64,
+and MLP size 128.
 
 \subsection{Training Customization}
 
@@ -517,14 +519,25 @@ leaderboard~\cite{standard_leaderboard} to play against other players' snakes.
 
 \subsection{Results}
 
+\paragraph{Performance under Resource Constraints}
+Although we worried about the size of the model impacting the inference speed,
+inference only took less than 1.0 millisecond and 600\,MiB of RAM on the default
+Duke VM. Therefore,
+we believe inference speed is not a bottleneck even on compute-constrained
+environments,
+but the size of the model will become a bottleneck when RAM is limited.
+As a conclusion,
+larger and more resource-intensive models like transformer are likely feasible,
+with the training process being the major bottleneck.
+
+\subsubsection{Manual Inspection}
+
 We implemented the \textsf{render}
 method on the environment to visualize the game.
 The implementation produces ANSI colored text-based information on both the game
 board and each agent's health.
 By repeatedly calling the model to predict the next actions,
 a terminal-based animation is created for ease of manual inspection.
-
-\subsubsection{Manual Inspection}
 
 \paragraph{Basic Model}
 
@@ -581,17 +594,7 @@ its significantly larger size. Though,
 we gave up on further training the VGG-like model because of the known
 limitations of CNNs that they require a large amount of data to train.
 
-Although we worried about the size of the model impacting the inference speed,
-inference only took less than 1.0 millisecond and 600\,MiB of RAM on the default
-Duke VM. Therefore,
-we believe inference speed is not a bottleneck even on compute-constrained
-environments,
-but the size of the model will become a bottleneck when RAM is limited.
-As a conclusion,
-larger and more resource-intensive models like transformer are likely feasible,
-with the training process being the major bottleneck.
-
-\paragraph{Model without Entropy Bonus}
+\paragraph{Impact of Entropy Bonus on Model Performance}
 If trained without any entropy bonus,
 larger models have a tendency to instruct the snake to spin in a circle
 (Figure~\ref{fig:render}).
@@ -620,7 +623,6 @@ and eventually converges to spinning.
     \label{fig:render}
 \end{figure}
 
-\paragraph{Model with Entropy Bonus}
 We tried to encourage exploration by adding an entropy bonus to the model.
 However, after setting the entropy coefficient to 0.1,
 our small ViT model could not learn to avoid walls even after training for
@@ -633,14 +635,49 @@ no matter the entropy coefficient.
 
 After we fixed the loading of previous models, added the food reward,
 and increased the entropy coefficient to 0.1,
-we trained the small ViT model for $587\times 16^4$ steps and the big ViT model
-for $339\times 16^4$ steps (counting previous steps trained). However,
+we trained the small ViT model for $865\times 16^4$ steps and the big ViT model
+for $429\times 16^4$ steps (counting previous steps trained). However,
 the small ViT model still has a less intense tendency to spin,
-while neither models can avoid walls or themselves consistently.
+while neither models can avoid themselves consistently.
 Training the small ViT model for $16^4$ steps on an RTX 3090 takes around 580s,
 and training the big ViT model for $16^4$ steps takes around 1300s.
 We note that the major bottleneck in training is the training efficiency and
 getting enough training steps for the model to converge.
+
+\paragraph{Tiny ViT Model}
+Based on the results of the small and big ViT models,
+we concluded that the models are too large and complex to train effectively,
+and we do not have enough resources to train them to convergence,
+therefore we focused on training the tiny ViT model instead.
+
+We made large adjustments to the training process of the tiny ViT model to
+improve both model performance and training efficiency.
+Entropy coefficient is set to a high 0.1 from the beginning,
+which is important to prevent the model from converging to spinning.
+The learning rate $2\times 10^{-2}$, much larger than $3\times 10^{-4}$,
+the training rate previously models used.
+We also increased the batch size to 64 from 8192 in an attempt to maximize the
+GPU utilization.
+Although the real batch size is around 2048 because of the number of steps the
+model simulates during each rollout,
+increasing the batch size sped up the training of each $16^4$ steps from around
+308s to around 214s on an RTX 3090.
+
+The tiny ViT model is mostly able to avoid walls and themselves after only
+$134\times 16^4$ steps of training. However,
+it is still not able to consistently avoid other snake even after $182\times
+16^4$ steps of training. Additionally,
+the tiny ViT model has a tendency of staying closely together with other agents,
+and collide with them, as shown in Figure~\ref{fig:tiny-vit-close-render}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\linewidth]{tiny_vit_close_render.png}
+    \caption{Game rendering of the tiny ViT model staying close with other
+        agents.
+    }
+    \label{fig:tiny-vit-close-render}
+\end{figure}
 
 \subsubsection{Comparison with Monte Carlo Tree Search}
 

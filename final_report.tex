@@ -176,26 +176,26 @@ with each entry normalized to be within $(-1,1)$, and 0 indicating emptiness:
 \begin{itemize}
     \item Wall layer. 1 indicates that the position is out of bound.
     \item Our snake's body layer.
-        The value of each of our body segment position will be calculate as $$
-            v_b:=\frac{2L_{\text{rest of body}}-1}{239}
-        $$ where $L$ is the length of the snake.
-        Large $v_b$'s indicate the position would remain occupied for longer.
-        The tail always corresponds to a $v_b<0$ for distinction.
+    The value of each of our body segment position will be calculate as $$
+        v_b:=\frac{2L_{\text{rest of body}}-1}{239}
+    $$ where $L$ is the length of the snake.
+    Large $v_b$'s indicate the position would remain occupied for longer.
+    The tail always corresponds to a $v_b<0$ for distinction.
     \item Three opponent snakes' layers.
-          These layers will be sorted by the opponents' length and then health.
-          Each opponent snake will be represented by 2 layers. \begin{itemize}
-              \item Head layer. The value of each head will be calculated as $$
-                        v_h:=\frac{1+2(L_{\text{opponent}}-L_{\text{us}})}{239}.
-                    $$ $v_h>0$ indicates that the opponent snake is at least as
-                    long as our snake,
-                    so colliding with their head would kill our snake;
-                    $v_h<0$ indicates the opposite.
-              \item Body layer. This layer will also be calculated using $v_b$.
-          \end{itemize}
+    These layers will be sorted by the opponents' length and then health.
+    Each opponent snake will be represented by 2 layers. \begin{itemize}
+        \item Head layer. The value of each head will be calculated as $$
+            v_h:=\frac{1+2(L_{\text{opponent}}-L_{\text{us}})}{239}.
+        $$ $v_h>0$ indicates that the opponent snake is at least as
+        long as our snake,
+        so colliding with their head would kill our snake;
+        $v_h<0$ indicates the opposite.
+        \item Body layer. This layer will also be calculated using $v_b$.
+    \end{itemize}
     \item Food layer.
-          The value will be $\displaystyle\frac{101-H_{\text{us}}}{100}$ if
-          there is food in the position.
-          A large value indicates our snake is hungry.
+    The value will be $\displaystyle\frac{101-H_{\text{us}}}{100}$ if
+    there is food in the position.
+    A large value indicates our snake is hungry.
 \end{itemize}
 
 We design the reinforcement learning reward based on the outcome of the game.
@@ -612,8 +612,10 @@ and eventually converges to spinning.
 
 \begin{figure}
     \centering
+    \includegraphics[width=\linewidth]{deep-mlp-spin-render.png}\\[24pt]
     \includegraphics[width=\linewidth]{vit_spin_render.png}
-    \caption{Game rendering with the small ViT model spinning in a circle.
+    \caption{Game rendering of the deeper MLP model (upper)
+        and the small ViT model (lower) spinning in a circle.
     }
     \label{fig:render}
 \end{figure}
@@ -647,7 +649,7 @@ we anticipate the agent to have decent performance compared to tree-search-based
 agents. Our agent's win rate against \emph{ich heisse marvin}
 should grow as the training process goes on,
 and eventually stabilize at a level slightly higher than \emph{ich heisse
-marvin}'s. The agent should also be competitive in the standard leaderboard,
+    marvin}'s. The agent should also be competitive in the standard leaderboard,
 and reach top 20 given enough time.
 
 We attempted to test the models against the tree search agent. However,

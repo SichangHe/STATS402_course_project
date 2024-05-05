@@ -13,10 +13,10 @@ pub struct Info {
 impl Info {
     pub const ME: Info = Info {
         apiversion: "1",
-        author: "Steven Hé (Sīchàng)",
+        author: "SichangHe",
         color: "#000000",
-        head: "default",
-        tail: "default",
+        head: "pixel",
+        tail: "pixel",
         version: env!("CARGO_PKG_VERSION"),
     };
 }

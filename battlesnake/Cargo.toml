@@ -8,9 +8,17 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 axum = "0.7"
-battlesnake-game-types = { path = "../battlesnake-game-types" }
+battlesnake_gym = { version = "0.1", path = "../battlesnake_train/battlesnake_gym" }
+numpy = "0.21.0"
 serde = "1.0.197"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+shame = "0.0.1"
+snork_engine = { version = "0.1.0", path = "../snork/snork_engine" }
+tokio = { version = "1", features = [
+    "macros",
+    "rt-multi-thread",
+    "sync",
+    "time",
+] }
 tokio_gen_server = "0.2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

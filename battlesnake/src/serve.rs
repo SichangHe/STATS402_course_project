@@ -4,7 +4,7 @@ use axum::{
     Json, Router,
 };
 
-use crate::{info::Info, logic::make_move};
+use crate::{info::Info, logic::respond_move};
 
 use super::*;
 
@@ -29,30 +29,28 @@ async fn handle_index() -> Json<Info> {
 }
 
 #[instrument]
-async fn handle_start(Json(game_state): Json<Game>) -> StatusCode {
+async fn handle_start(Json(game_request): Json<GameRequest>) -> StatusCode {
     warn!("Start.");
     StatusCode::OK
 }
 
+const LATENCY_MS: u64 = 40;
+
 #[instrument]
-async fn handle_move(Json(game_state): Json<Game>) -> Json<Move> {
+async fn handle_move(Json(game_request): Json<GameRequest>) -> Json<MoveResponse> {
     info!("Move.");
-    let move_to_take = do_handle_move(game_state).unwrap_or_else(|why| {
-        warn!("Failed to make move, moving up: {:?}", why);
-        Move::Up
+    let game = Game::from_request(&game_request);
+    let timeout = Duration::from_millis(game_request.game.timeout.saturating_sub(LATENCY_MS));
+    let move_to_take = respond_move(&game, timeout).await.unwrap_or_else(|why| {
+        let direction = game.valid_moves(0).next().unwrap_or(Direction::Up);
+        warn!("Failed to make move, moving `{direction}`: {why:?}");
+        MoveResponse::new(direction)
     });
     Json(move_to_take)
 }
 
-fn do_handle_move(game_state: Game) -> Result<Move, Box<dyn Error>> {
-    let snake_ids = build_snake_id_map(&game_state);
-    let compact_game = StandardCellBoard4Snakes11x11::convert_from_game(game_state, &snake_ids)?;
-
-    Ok(make_move(&compact_game))
-}
-
 #[instrument]
-async fn handle_end(Json(game_state): Json<Game>) -> StatusCode {
+async fn handle_end(Json(game_request): Json<GameRequest>) -> StatusCode {
     warn!("End.");
     StatusCode::OK
 }

@@ -24,16 +24,16 @@ use observations::*;
 
 const BOARD_SIZE: usize = 11;
 const N_SNAKES: usize = 4;
-const WIN_REWARD: f64 = 1.0;
-const LOSE_REWARD: f64 = -1.0;
+pub const WIN_REWARD: f64 = 1.0;
+pub const LOSE_REWARD: f64 = -1.0;
 const SURVIVE_ROUND_REWARD: f64 = 0.002;
 const EATING_REWARD_FACTOR: f64 = 0.000_001;
 
 // Clockwise, opposite to `np.rot90`.
-const UP: isize = 0;
-const RIGHT: isize = 1;
-const DOWN: isize = 2;
-const LEFT: isize = 3;
+pub const UP: isize = 0;
+pub const RIGHT: isize = 1;
+pub const DOWN: isize = 2;
+pub const LEFT: isize = 3;
 
 const PADDED_SIZE: usize = BOARD_SIZE * 2 - 1;
 const N_LAYERS: usize = 9;
@@ -80,13 +80,8 @@ impl SnakeGame {
         // Based on `snork/src/simulate.rs`.
         let mut moves = [Direction::Up; N_SNAKES];
         for (index, &relative_move) in actions.iter().enumerate() {
-            moves[index] = match snake_true_move(&self.game.snakes[index], relative_move) {
-                UP => Direction::Up,
-                RIGHT => Direction::Right,
-                DOWN => Direction::Down,
-                LEFT => Direction::Left,
-                _ => unreachable!("`snake_true_move` is 0 ~ 3."),
-            };
+            moves[index] =
+                snake_true_move2direction(snake_true_move(&self.game.snakes[index], relative_move));
         }
         self.game.step(&moves);
 
@@ -250,6 +245,16 @@ fn snake_relative_move(snake: &Snake, true_move: isize) -> isize {
     (true_move - facing).rem_euclid(4)
 }
 
+pub fn snake_true_move2direction(snake_true_move: isize) -> Direction {
+    match snake_true_move {
+        UP => Direction::Up,
+        RIGHT => Direction::Right,
+        DOWN => Direction::Down,
+        LEFT => Direction::Left,
+        _ => unreachable!("`snake_true_move` should be 0 ~ 3."),
+    }
+}
+
 fn fresh_game<R: RngCore>(rng: &mut R) -> Game {
     init_game(BOARD_SIZE, BOARD_SIZE, N_SNAKES, rng)
 }
@@ -264,7 +269,7 @@ const FOOD_RATE: f64 = 0.15;
 /// Prints a message.
 #[pyfunction]
 fn hello() -> PyResult<String> {
-    Ok("Hello from battlesnake-gym!".into())
+    Ok("Hello from battlesnake_gym!".into())
 }
 
 /// A Python module implemented in Rust.

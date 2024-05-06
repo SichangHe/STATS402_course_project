@@ -1,4 +1,4 @@
-use tokio::{select, spawn, sync::mpsc, time};
+use tokio::{pin, select, spawn, sync::mpsc, time};
 
 use model::*;
 
@@ -36,10 +36,14 @@ async fn make_move(game: &Game, timeout: Duration, model: Arc<Model>) -> Result<
     };
     let mut searches = spawn(searches);
 
+    let extra_safety_sleeper = time::sleep(timeout);
+    pin!(extra_safety_sleeper);
+
     let mut direction = None;
     while let Some(new_direction) = select! {
         new_direction = receiver.recv() => new_direction,
         _ = &mut searches => None,
+        _ = &mut extra_safety_sleeper => None,
     } {
         direction = Some(new_direction);
         debug!(?new_direction);
@@ -58,7 +62,6 @@ async fn tree_searches(
     sender: mpsc::Sender<Direction>,
     model: Arc<Model>,
 ) -> Result<()> {
-    let model = Model::try_new()?;
     let mut search_tree = SearchTree::try_new(game, &model).await?;
 
     loop {

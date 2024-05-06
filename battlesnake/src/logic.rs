@@ -1,4 +1,4 @@
-use tokio::{select, spawn, sync::mpsc, time};
+use tokio::time;
 use tokio_scoped::scope;
 
 use model::*;
@@ -23,12 +23,12 @@ async fn make_move(game: &Game, timeout: Duration, model: &Model) -> Result<Dire
 
     let mut direction = None;
     scope(|scope| {
-        let searches = tree_searches(game.clone(), &mut direction, model);
-        let searches = time::timeout(timeout, searches);
+        let searches = tree_searches(game.clone(), &mut direction, timeout, model);
+        // let searches = time::timeout(timeout, searches);
         let searches = async move {
             match searches.await {
-                Ok(Err(why)) => error!(?why, "tree_searches"),
-                Ok(Ok(())) | Err(_) => {}
+                Ok(()) => {}
+                Err(why) => error!(?why, "tree_searches"),
             }
         };
         scope.spawn(searches);
@@ -42,10 +42,35 @@ async fn make_move(game: &Game, timeout: Duration, model: &Model) -> Result<Dire
 /// To avoid out of RAM.
 const TOO_MANY_NODES: usize = 0x8_000;
 
-async fn tree_searches(game: Game, direction: &mut Option<Direction>, model: &Model) -> Result<()> {
+async fn tree_searches(
+    game: Game,
+    direction: &mut Option<Direction>,
+    timeout: Duration,
+    model: &Model,
+) -> Result<()> {
+    let start_instant = time::Instant::now();
     let mut search_tree = SearchTree::try_new(game, model).await?;
 
-    while search_tree.nodes.len() < TOO_MANY_NODES && search_tree.compute_next_layer(model).await? {
+    loop {
+        if search_tree.nodes.len() < TOO_MANY_NODES {
+            warn!(
+                n_search_tree_node = search_tree.nodes.len(),
+                "Too many nodes"
+            );
+            break;
+        }
+        let current_timeout = timeout
+            .checked_sub(start_instant.elapsed())
+            .unwrap_or(NO_TIME);
+        match time::timeout(current_timeout, search_tree.compute_next_layer(model)).await {
+            Ok(maybe_more_layers_exist) => {
+                if !maybe_more_layers_exist? {
+                    info!("Search complete");
+                    break;
+                }
+            }
+            Err(_timed_out) => break,
+        }
         if let Some(new_direction) = search_tree.best_direction() {
             *direction = Some(new_direction);
             debug!(?new_direction, "Updated");

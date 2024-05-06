@@ -25,7 +25,7 @@ impl Model {
                 policy_logit[UP as usize] = 0.0;
                 continue;
             }
-            for direction in snake_valid_directions(game, &(player_id as u8)) {
+            for direction in snake_valid_directions(game, &(player_id as u8)).take(3) {
                 let action_index = direction2snake_true_move(direction) as usize;
                 policy_logit[action_index] = -LN_2; // Randomly give valid actions a 0.5 probability.
                 values[action_index] = 0.0;

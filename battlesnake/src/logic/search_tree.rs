@@ -55,6 +55,7 @@ impl<'a> SearchTree<'a> {
             leaf_node_new_children.push((leaf_index, children));
         }
         let leaf_node_new_children = leaf_node_new_children;
+        trace!(?leaf_node_new_children);
         // TODO: Alpha-Beta Pruning.
 
         self.leaf_nodes.clear();
@@ -75,6 +76,12 @@ impl<'a> SearchTree<'a> {
             .map(|(_, children)| children.len())
             .sum();
         self.children.reserve(n_new_children);
+        debug!(
+            node = self.nodes.capacity(),
+            child = self.children.capacity(),
+            leaf_node = self.leaf_nodes.capacity(),
+            "Capacities reserved.",
+        );
         let _break_future = async {}.await;
 
         for (leaf_index, children) in leaf_node_new_children {
@@ -103,7 +110,8 @@ impl<'a> SearchTree<'a> {
                     min_reward,
                 };
                 let child_index = self.insert_child(child);
-                // Come back and update nodes' parent child indexes.
+                // Come back and update nodes' children and parent indexes.
+                self.get_node_mut(leaf_index).children.push(child_index);
                 for node_index in node_indexes {
                     let node = self.get_node_mut(node_index);
                     node.parent_child_index = Some(child_index);
@@ -113,10 +121,13 @@ impl<'a> SearchTree<'a> {
         }
 
         self.back_propagate_rewards();
+        self.depth += 1;
+        trace!(?self);
         info!(
             ?self.depth,
             n_node = self.nodes.len(),
             n_child = self.children.len(),
+            n_leaf_node = self.leaf_nodes.len(),
         );
         self.root()
             .children
@@ -271,6 +282,7 @@ async fn expand_leaf_node(
         .try_collect::<ArrayVec<_>>()
         .await?;
 
+    trace!(?your_action_and_children);
     Ok(your_action_and_children)
 }
 
@@ -340,7 +352,7 @@ pub struct SearchTreeChild<'a> {
     pub min_reward: f64,
 }
 
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 struct OwnedChild {
     pub your_action: Direction,
     pub opponent_action_and_nodes: Vec<([Direction; 3], SearchTreeNode<'static>)>,

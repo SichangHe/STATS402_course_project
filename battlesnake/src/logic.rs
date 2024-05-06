@@ -15,6 +15,7 @@ pub async fn respond_move(game: &Game, timeout: Duration) -> Result<MoveResponse
     Ok(MoveResponse::new(direction))
 }
 
+#[instrument(skip(game))]
 async fn make_move(game: &Game, timeout: Duration) -> Result<Direction> {
     let (sender, mut receiver) = mpsc::channel(8);
 
@@ -33,6 +34,7 @@ async fn make_move(game: &Game, timeout: Duration) -> Result<Direction> {
         _ = &mut searches => None,
     } {
         direction = Some(new_direction);
+        debug!(?new_direction);
     }
 
     let direction = direction.context("Tree search did not return a direction")?;

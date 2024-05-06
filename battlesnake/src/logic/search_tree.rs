@@ -4,8 +4,8 @@ use super::*;
 pub struct SearchTree<'a> {
     pub depth: usize,
     pub nodes: Vec<SearchTreeNode<'a>>,
+    pub children: Vec<SearchTreeChild<'a>>,
     pub leaf_nodes: Vec<SearchTreeIndex<'a>>,
-    pub _phantom: PhantomData<&'a ()>,
 }
 
 impl<'a> SearchTree<'a> {
@@ -13,8 +13,8 @@ impl<'a> SearchTree<'a> {
         let mut result = Self {
             depth: 0,
             nodes: Vec::with_capacity(1024),
+            children: Vec::with_capacity(512),
             leaf_nodes: Vec::with_capacity(256),
-            _phantom: PhantomData,
         };
 
         let root_index = result.make_node(game, model).await?;
@@ -31,16 +31,30 @@ impl<'a> SearchTree<'a> {
         &mut self.nodes[0]
     }
 
-    pub fn get(&self, index: SearchTreeIndex<'a>) -> &SearchTreeNode<'a> {
+    pub fn get_node(&self, index: SearchTreeIndex<'a>) -> &SearchTreeNode<'a> {
         &self.nodes[index.index]
     }
 
-    pub fn get_mut(&mut self, index: SearchTreeIndex<'a>) -> &mut SearchTreeNode<'a> {
+    pub fn get_node_mut(&mut self, index: SearchTreeIndex<'a>) -> &mut SearchTreeNode<'a> {
         &mut self.nodes[index.index]
     }
 
+    pub fn get_child(&self, index: SearchTreeChildIndex<'a>) -> &SearchTreeChild<'a> {
+        &self.children[index.index]
+    }
+
+    pub fn get_child_mut(&mut self, index: SearchTreeChildIndex<'a>) -> &mut SearchTreeChild<'a> {
+        &mut self.children[index.index]
+    }
+
     pub async fn compute_next_layer(&mut self, model: &Model) -> Result<Direction> {
+        let new_leaf_nodes = self
+            .leaf_nodes
+            .iter()
+            .copied()
+            .map(|leaf_index| self.expand_leaf_node(leaf_index, model));
         let new_leaf_nodes = Vec::with_capacity(self.leaf_nodes.len() * 4);
+        // TODO: Make parallel.
         for &leaf_index in &self.leaf_nodes {
             let expansion = self.expand_leaf_node(leaf_index, model).await?;
             // TODO: Alpha-Beta Pruning.
@@ -57,41 +71,44 @@ impl<'a> SearchTree<'a> {
         &self,
         leaf_index: SearchTreeIndex<'a>,
         model: &Model,
-    ) -> Result<Vec<([Direction; 4], SearchTreeNode<'a>)>> {
-        let leaf_node = self.get(leaf_index);
+    ) -> Result<ArrayVec<[Vec<([Direction; 4], SearchTreeNode<'a>)>; 3]>> {
+        let leaf_node = self.get_node(leaf_index);
         let actions = &leaf_node.probable_actions;
-        let action_combos = actions[0]
+        let opponent_action_combos = actions[1]
             .iter()
-            .cartesian_product(&actions[1])
             .cartesian_product(&actions[2])
             .cartesian_product(&actions[3]);
         // TODO: Make parallel.
         // TODO: Alpha-Beta pruning (referencing `prune_leaf_nodes`).
-        let children = stream::iter(action_combos)
-            .then(|(((d0, d1), d2), d3)| async {
-                let actions = [*d0, *d1, *d2, *d3];
-                let mut game = leaf_node.game.clone();
-                game.step(&actions);
-                match game.outcome() {
-                    Outcome::None => make_node(game, model, self.depth)
-                        .await
-                        .map(|node| (actions, node)),
-                    Outcome::Winner(winner) => Ok((
-                        actions,
-                        SearchTreeNode::terminal(game, self.depth, Some(winner)),
-                    )),
-                    Outcome::Match => {
-                        Ok((actions, SearchTreeNode::terminal(game, self.depth, None)))
-                    }
-                }
+        let your_action_and_children = stream::iter(&actions[0])
+            .then(|d0| {
+                stream::iter(opponent_action_combos.clone())
+                    .then(|((d1, d2), d3)| async {
+                        let actions = [*d0, *d1, *d2, *d3];
+                        let mut game = leaf_node.game.clone();
+                        game.step(&actions);
+                        match game.outcome() {
+                            Outcome::None => make_node(game, model, self.depth)
+                                .await
+                                .map(|node| (actions, node)),
+                            Outcome::Winner(winner) => Ok((
+                                actions,
+                                SearchTreeNode::terminal(game, self.depth, Some(winner)),
+                            )),
+                            Outcome::Match => {
+                                Ok((actions, SearchTreeNode::terminal(game, self.depth, None)))
+                            }
+                        }
+                    })
+                    .try_collect::<Vec<_>>()
             })
-            .try_collect::<Vec<_>>()
+            .try_collect::<ArrayVec<_>>()
             .await?;
 
-        Ok(children)
+        Ok(your_action_and_children)
     }
 
-    fn insert(&mut self, node: SearchTreeNode<'a>) -> SearchTreeIndex<'a> {
+    fn insert_node(&mut self, node: SearchTreeNode<'a>) -> SearchTreeIndex<'a> {
         let index = self.nodes.len();
         self.nodes.push(node);
         SearchTreeIndex {
@@ -102,7 +119,16 @@ impl<'a> SearchTree<'a> {
 
     async fn make_node(&mut self, game: Game, model: &Model) -> Result<SearchTreeIndex<'a>> {
         let node = make_node(game, model, self.depth).await?;
-        Ok(self.insert(node))
+        Ok(self.insert_node(node))
+    }
+
+    fn insert_child(&mut self, child: SearchTreeChild<'a>) -> SearchTreeChildIndex<'a> {
+        let index = self.children.len();
+        self.children.push(child);
+        SearchTreeChildIndex {
+            index,
+            _phantom: PhantomData,
+        }
     }
 }
 
@@ -136,8 +162,7 @@ async fn make_node<'a>(game: Game, model: &Model, depth: usize) -> Result<Search
         depth,
         rewards: prediction.values,
         probable_actions,
-        children: Vec::new(),
-        _phantom: PhantomData,
+        children: Default::default(),
     };
     Ok(node)
 }
@@ -173,8 +198,7 @@ pub struct SearchTreeNode<'a> {
     pub depth: usize,
     pub rewards: [f64; 4],
     pub probable_actions: [ArrayVec<[Direction; 3]>; 4],
-    pub children: Vec<([Direction; 4], SearchTreeIndex<'a>)>,
-    pub _phantom: PhantomData<&'a ()>,
+    pub children: ArrayVec<[SearchTreeChildIndex<'a>; 3]>,
 }
 
 impl<'a> SearchTreeNode<'a> {
@@ -189,14 +213,26 @@ impl<'a> SearchTreeNode<'a> {
             rewards,
             probable_actions: Default::default(),
             children: Default::default(),
-            _phantom: Default::default(),
         }
     }
+}
+
+#[derive(Clone, Debug, Default)]
+struct SearchTreeChild<'a> {
+    pub your_action: Direction,
+    pub opponent_action_and_nodes: ArrayVec<[([Direction; 3], SearchTreeIndex<'a>); 3]>,
 }
 
 #[derive(Copy)]
 #[derive_everything]
 pub struct SearchTreeIndex<'a> {
+    index: usize,
+    _phantom: PhantomData<&'a ()>,
+}
+
+#[derive(Copy)]
+#[derive_everything]
+pub struct SearchTreeChildIndex<'a> {
     index: usize,
     _phantom: PhantomData<&'a ()>,
 }

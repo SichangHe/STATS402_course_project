@@ -1,9 +1,3 @@
-use std::{cmp::Ordering, f64::consts::LN_2};
-
-use battlesnake_gym::{direction2snake_true_move, snake_true_move2direction};
-use shame::derive_everything;
-use tinyvec::ArrayVec;
-
 use super::*;
 
 #[derive(Clone, Debug)]
@@ -75,10 +69,21 @@ impl<'a> SearchTree<'a> {
         // TODO: Alpha-Beta pruning (referencing `prune_leaf_nodes`).
         let children = stream::iter(action_combos)
             .then(|(((d0, d1), d2), d3)| async {
-                let game = leaf_node.game.clone();
-                make_node(game, model, self.depth)
-                    .await
-                    .map(|node| ([*d0, *d1, *d2, *d3], node))
+                let actions = [*d0, *d1, *d2, *d3];
+                let mut game = leaf_node.game.clone();
+                game.step(&actions);
+                match game.outcome() {
+                    Outcome::None => make_node(game, model, self.depth)
+                        .await
+                        .map(|node| (actions, node)),
+                    Outcome::Winner(winner) => Ok((
+                        actions,
+                        SearchTreeNode::terminal(game, self.depth, Some(winner)),
+                    )),
+                    Outcome::Match => {
+                        Ok((actions, SearchTreeNode::terminal(game, self.depth, None)))
+                    }
+                }
             })
             .try_collect::<Vec<_>>()
             .await?;
@@ -170,6 +175,23 @@ pub struct SearchTreeNode<'a> {
     pub probable_actions: [ArrayVec<[Direction; 3]>; 4],
     pub children: Vec<([Direction; 4], SearchTreeIndex<'a>)>,
     pub _phantom: PhantomData<&'a ()>,
+}
+
+impl<'a> SearchTreeNode<'a> {
+    fn terminal(game: Game, depth: usize, winner: Option<u8>) -> Self {
+        let mut rewards = [LOSE_REWARD; 4];
+        if let Some(player_id) = winner {
+            rewards[player_id as usize] = WIN_REWARD;
+        }
+        Self {
+            game,
+            depth,
+            rewards,
+            probable_actions: Default::default(),
+            children: Default::default(),
+            _phantom: Default::default(),
+        }
+    }
 }
 
 #[derive(Copy)]

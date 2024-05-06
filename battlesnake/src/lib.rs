@@ -1,13 +1,18 @@
-use std::{marker::PhantomData, time::Duration};
+use std::{cmp::Ordering, f64::consts::LN_2, marker::PhantomData, time::Duration};
 
 use anyhow::{Context, Result};
+use battlesnake_gym::{
+    direction2snake_true_move, snake_true_move2direction, LOSE_REWARD, WIN_REWARD,
+};
 use futures::prelude::*;
 use itertools::Itertools;
 use serde::Serialize;
+use shame::derive_everything;
 use snork_engine::{
     env::{Direction, GameRequest, MoveResponse},
-    game::Game,
+    game::{Game, Outcome},
 };
+use tinyvec::ArrayVec;
 use tracing::*;
 use tracing_subscriber::EnvFilter;
 

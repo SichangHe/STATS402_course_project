@@ -1,4 +1,5 @@
 use tokio::{select, spawn, sync::mpsc, time};
+use tokio_scoped::scope;
 
 use model::*;
 
@@ -10,36 +11,28 @@ use search_tree::*;
 
 const NO_TIME: Duration = Duration::from_secs(0);
 
-pub async fn respond_move(game: &Game, timeout: Duration) -> Result<MoveResponse> {
-    let direction = make_move(game, timeout).await?;
+pub async fn respond_move(game: &Game, timeout: Duration, model: &Model) -> Result<MoveResponse> {
+    let direction = make_move(game, timeout, model).await?;
     info!(?direction);
     Ok(MoveResponse::new(direction))
 }
 
 #[instrument(skip(game))]
-async fn make_move(game: &Game, timeout: Duration) -> Result<Direction> {
+async fn make_move(game: &Game, timeout: Duration, model: &Model) -> Result<Direction> {
     info!(?game);
 
-    let (sender, mut receiver) = mpsc::channel(8);
-
-    let searches = tree_searches(game.clone(), sender);
-    let searches = time::timeout(timeout, searches);
-    let searches = async move {
-        match searches.await {
-            Ok(Err(why)) => error!(?why, "tree_searches"),
-            Ok(Ok(())) | Err(_) => {}
-        }
-    };
-    let mut searches = spawn(searches);
-
     let mut direction = None;
-    while let Some(new_direction) = select! {
-        new_direction = receiver.recv() => new_direction,
-        _ = &mut searches => None,
-    } {
-        direction = Some(new_direction);
-        debug!(?new_direction);
-    }
+    scope(|scope| {
+        let searches = tree_searches(game.clone(), &mut direction, model);
+        let searches = time::timeout(timeout, searches);
+        let searches = async move {
+            match searches.await {
+                Ok(Err(why)) => error!(?why, "tree_searches"),
+                Ok(Ok(())) | Err(_) => {}
+            }
+        };
+        scope.spawn(searches);
+    });
 
     let direction = direction.context("Tree search did not return a direction")?;
     info!(?direction);
@@ -49,17 +42,14 @@ async fn make_move(game: &Game, timeout: Duration) -> Result<Direction> {
 /// To avoid out of RAM.
 const TOO_MANY_NODES: usize = 0x8_000;
 
-async fn tree_searches(game: Game, sender: mpsc::Sender<Direction>) -> Result<()> {
-    let model = Model::try_new()?;
-    let mut search_tree = SearchTree::try_new(game, &model).await?;
+async fn tree_searches(game: Game, direction: &mut Option<Direction>, model: &Model) -> Result<()> {
+    let mut search_tree = SearchTree::try_new(game, model).await?;
 
-    while search_tree.nodes.len() < TOO_MANY_NODES && search_tree.compute_next_layer(&model).await?
-    {
-        let new_direction = search_tree
-            .best_direction()
-            .context("No result from search tree")?;
-        sender.send(new_direction).await?;
-        debug!(?new_direction, "Sent");
+    while search_tree.nodes.len() < TOO_MANY_NODES && search_tree.compute_next_layer(model).await? {
+        if let Some(new_direction) = search_tree.best_direction() {
+            *direction = Some(new_direction);
+            debug!(?new_direction, "Updated");
+        }
     }
 
     Ok(())

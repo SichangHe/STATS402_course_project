@@ -132,6 +132,7 @@ dependencies = [
  "futures",
  "itertools",
  "numpy",
+ "pyo3",
  "serde",
  "shame",
  "snork_engine",

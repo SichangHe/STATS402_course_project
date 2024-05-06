@@ -1,12 +1,34 @@
+use pyo3::types::IntoPyDict;
+
 use super::*;
 
+#[derive(Clone, Debug)]
 pub struct Model {
-    // TODO: Add fields
+    py_model: Py<PyAny>,
 }
 
 impl Model {
-    pub fn new() -> Self {
-        Self {}
+    #[allow(non_snake_case)]
+    pub fn try_new() -> Result<Self> {
+        let py_model = Python::with_gil(|py| -> Result<_> {
+            let battlesnake_gym = PyModule::import_bound(py, "battlesnake_gym")?;
+            let BattlesnakeEnv = battlesnake_gym.getattr("BattlesnakeEnv")?;
+            let battlesnake_train = PyModule::import_bound(py, "battlesnake_train")?;
+            let ppo = battlesnake_train.getattr("ppo")?;
+            let DynPPO = ppo.getattr("DynPPO")?;
+
+            let env = BattlesnakeEnv.call0()?;
+            let model = DynPPO.call_method(
+                "load_trial",
+                (),
+                Some(&vec![("save_model_name", "vit_tiny")].into_py_dict_bound(py)),
+            )?;
+            let trial_index = model.getattr("trial_index")?;
+            info!(?trial_index);
+
+            Ok(model.unbind())
+        })?;
+        Ok(Self { py_model })
     }
 
     /// Predict policy probabilities and values given observations.

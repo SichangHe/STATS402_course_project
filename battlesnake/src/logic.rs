@@ -50,7 +50,7 @@ async fn make_move(game: &Game, timeout: Duration) -> Result<Direction> {
 const TOO_MANY_NODES: usize = 0x8_000;
 
 async fn tree_searches(game: Game, sender: mpsc::Sender<Direction>) -> Result<()> {
-    let model = Model::new();
+    let model = Model::try_new()?;
     let mut search_tree = SearchTree::try_new(game, &model).await?;
 
     while search_tree.nodes.len() < TOO_MANY_NODES && search_tree.compute_next_layer(&model).await?

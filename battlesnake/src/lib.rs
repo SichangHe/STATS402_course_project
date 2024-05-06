@@ -6,8 +6,9 @@ use battlesnake_gym::{
 };
 use futures::prelude::*;
 use itertools::Itertools;
+use pyo3::prelude::*;
 use serde::Serialize;
-use shame::derive_everything;
+use shame::*;
 use snork_engine::{
     env::{Direction, GameRequest, MoveResponse},
     game::{Game, Outcome},

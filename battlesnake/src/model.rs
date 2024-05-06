@@ -1,46 +1,37 @@
 use battlesnake_gym::observations::states;
 use numpy::convert::IntoPyArray;
 use pyo3::{intern, types::IntoPyDict};
+use tokio::{sync::Mutex, task::JoinHandle};
+use tokio_gen_server::*;
 
 use super::*;
 
-#[derive(Clone, Debug)]
-pub struct Model {
+struct ModelActor {
     py_model: Py<PyAny>,
     np_rot90: Py<PyAny>,
 }
 
-impl Model {
-    #[allow(non_snake_case)]
-    #[instrument]
-    pub fn try_new() -> PyResult<Self> {
-        debug!("Loading model.");
-        Python::with_gil(|py| {
-            let numpy = PyModule::import_bound(py, "numpy")?;
-            let rot90 = numpy.getattr("rot90")?;
+impl Actor for ModelActor {
+    type CallMsg = Game;
 
-            let battlesnake_gym = PyModule::import_bound(py, "battlesnake_gym")?;
-            let BattlesnakeEnv = battlesnake_gym.getattr("BattlesnakeEnv")?;
-            let battlesnake_train = PyModule::import_bound(py, "battlesnake_train")?;
-            let ppo = battlesnake_train.getattr("ppo")?;
-            let DynPPO = ppo.getattr("DynPPO")?;
+    type CastMsg = ();
 
-            let env = BattlesnakeEnv.call0()?;
-            let model = DynPPO.call_method(
-                "load_trial",
-                (env,),
-                Some(&[("save_model_name", "vit-tiny")].into_py_dict_bound(py)),
-            )?;
-            let trial_index = model.getattr("trial_index")?;
-            info!(?trial_index);
+    type Reply = (Game, Result<Prediction>);
 
-            Ok(Self {
-                py_model: model.unbind(),
-                np_rot90: rot90.unbind(),
-            })
-        })
+    async fn handle_call(
+        &mut self,
+        game: Self::CallMsg,
+        _env: &mut Ref<Self>,
+        reply_sender: tokio::sync::oneshot::Sender<Self::Reply>,
+    ) -> Result<()> {
+        let prediction = self.predict(&game);
+        _ = reply_sender.send((game, prediction));
+
+        Ok(())
     }
+}
 
+impl ModelActor {
     /// Predict policy probabilities and values given observations.
     /// Invalid actions correspond to -inf logits.
     /// Invalid game states correspond to 0 values.
@@ -96,6 +87,56 @@ impl Model {
             policy_logits,
             values,
         })
+    }
+}
+
+pub struct Model {
+    pub handle: JoinHandle<Result<()>>,
+    pub actor_ref: Mutex<Ref<ModelActor>>,
+}
+
+impl Model {
+    #[allow(non_snake_case)]
+    #[instrument]
+    pub fn try_new() -> PyResult<Self> {
+        debug!("Loading model.");
+        let actor = Python::with_gil(|py| -> PyResult<_> {
+            let numpy = PyModule::import_bound(py, "numpy")?;
+            let rot90 = numpy.getattr("rot90")?;
+
+            let battlesnake_gym = PyModule::import_bound(py, "battlesnake_gym")?;
+            let BattlesnakeEnv = battlesnake_gym.getattr("BattlesnakeEnv")?;
+            let battlesnake_train = PyModule::import_bound(py, "battlesnake_train")?;
+            let ppo = battlesnake_train.getattr("ppo")?;
+            let DynPPO = ppo.getattr("DynPPO")?;
+
+            let env = BattlesnakeEnv.call0()?;
+            let model = DynPPO.call_method(
+                "load_trial",
+                (env,),
+                Some(&[("save_model_name", "vit-tiny")].into_py_dict_bound(py)),
+            )?;
+            let trial_index = model.getattr("trial_index")?;
+            info!(?trial_index);
+
+            Ok(ModelActor {
+                py_model: model.unbind(),
+                np_rot90: rot90.unbind(),
+            })
+        })?;
+
+        let (handle, actor_ref) = actor.spawn();
+        let actor_ref = Mutex::new(actor_ref);
+        Ok(Self { handle, actor_ref })
+    }
+
+    /// Predict policy probabilities and values given observations.
+    /// Invalid actions correspond to -inf logits.
+    /// Invalid game states correspond to 0 values.
+    /// Dead agents receive logits of 0 for only one of the actions.
+    #[instrument(skip(self, game))]
+    pub async fn predict(&self, game: Game) -> Result<(Game, Result<Prediction>)> {
+        self.actor_ref.lock().await.call(game).await
     }
 }
 

@@ -222,14 +222,14 @@ pub fn snake_probable_actions(prediction: &Prediction) -> [ArrayVec<[Direction; 
     probable_actions
 }
 
-#[inline(never)]
 async fn make_node<'a>(
     parent_child_index: Option<SearchTreeChildIndex<'a>>,
     game: Game,
     model: &Model,
     depth: usize,
 ) -> Result<SearchTreeNode<'a>> {
-    let prediction = model.predict(&game)?;
+    let (game, prediction) = model.predict(game).await?;
+    let prediction = prediction?;
     let probable_actions = snake_probable_actions(&prediction);
     let node = SearchTreeNode {
         parent_child_index,

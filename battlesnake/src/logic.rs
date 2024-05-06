@@ -20,7 +20,7 @@ pub async fn respond_move(
     Ok(MoveResponse::new(direction))
 }
 
-#[instrument(skip(game))]
+#[instrument(skip(game, model))]
 async fn make_move(game: &Game, timeout: Duration, model: Arc<Model>) -> Result<Direction> {
     info!(?game);
 

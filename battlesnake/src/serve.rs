@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use axum::{
     http::StatusCode,
     routing::{get, post},
@@ -53,7 +51,7 @@ async fn handle_move(
     let mut game = Game::from_request(&game_request);
     fix_game(&mut game);
     let timeout = Duration::from_millis(game_request.game.timeout.saturating_sub(LATENCY_MS));
-    let move_to_take = respond_move(&game, timeout, &model)
+    let move_to_take = respond_move(&game, timeout, model)
         .await
         .unwrap_or_else(|why| {
             let direction = game.valid_moves(0).next().unwrap_or(Direction::Up);

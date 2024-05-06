@@ -12,7 +12,9 @@ pub struct Model {
 
 impl Model {
     #[allow(non_snake_case)]
+    #[instrument]
     pub fn try_new() -> PyResult<Self> {
+        debug!("Loading model.");
         Python::with_gil(|py| {
             let numpy = PyModule::import_bound(py, "numpy")?;
             let rot90 = numpy.getattr("rot90")?;
@@ -43,7 +45,9 @@ impl Model {
     /// Invalid actions correspond to -inf logits.
     /// Invalid game states correspond to 0 values.
     /// Dead agents receive logits of 0 for only one of the actions.
+    #[instrument(skip(self, game))]
     pub fn predict(&self, game: &Game) -> Result<Prediction> {
+        trace!("Predicting.");
         let mut policy_logits = [[f64::NEG_INFINITY; 4]; 4];
         let mut values = [LOSE_REWARD; 4];
         let (raw_states, snake_facings) = states(game);
@@ -87,6 +91,7 @@ impl Model {
             Ok(())
         })?;
 
+        trace!("Predicted.");
         Ok(Prediction {
             policy_logits,
             values,

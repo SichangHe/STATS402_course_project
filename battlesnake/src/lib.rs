@@ -1,6 +1,8 @@
 use std::{marker::PhantomData, time::Duration};
 
 use anyhow::{Context, Result};
+use futures::prelude::*;
+use itertools::Itertools;
 use serde::Serialize;
 use snork_engine::{
     env::{Direction, GameRequest, MoveResponse},

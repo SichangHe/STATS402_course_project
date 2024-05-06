@@ -255,6 +255,15 @@ pub fn snake_true_move2direction(snake_true_move: isize) -> Direction {
     }
 }
 
+pub fn direction2snake_true_move(direction: Direction) -> isize {
+    match direction {
+        Direction::Up => UP,
+        Direction::Right => RIGHT,
+        Direction::Down => DOWN,
+        Direction::Left => LEFT,
+    }
+}
+
 fn fresh_game<R: RngCore>(rng: &mut R) -> Game {
     init_game(BOARD_SIZE, BOARD_SIZE, N_SNAKES, rng)
 }

@@ -1,5 +1,7 @@
 use tokio::{pin, select, sync::mpsc, time};
 
+use model::*;
+
 use super::*;
 
 mod search_tree;
@@ -39,11 +41,11 @@ async fn make_move(game: &Game, timeout: Duration) -> Result<Direction> {
 }
 
 async fn tree_searches(game: &Game, sender: mpsc::Sender<Direction>) -> Result<()> {
-    let mut search_tree = SearchTree::new(game.clone());
-    let mut model = todo!();
+    let model = Model::new();
+    let mut search_tree = SearchTree::try_new(game.clone(), &model).await?;
 
     loop {
-        let new_direction = search_tree.compute_next_layer(&mut model)?;
+        let new_direction = search_tree.compute_next_layer(&model).await?;
         sender.send(new_direction).await?;
     }
 }

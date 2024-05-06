@@ -17,7 +17,7 @@ impl<'a> SearchTree<'a> {
             leaf_nodes: Vec::with_capacity(256),
         };
 
-        let root_index = result.make_node(game, model).await?;
+        let root_index = result.make_node(None, game, model).await?;
         result.leaf_nodes.push(root_index);
 
         Ok(result)
@@ -93,12 +93,22 @@ impl<'a> SearchTree<'a> {
                         (actions, node_index)
                     })
                     .collect::<Vec<_>>();
+                let node_indexes = opponent_action_and_nodes
+                    .iter()
+                    .map(|(_, node_index)| *node_index)
+                    .collect::<Vec<_>>();
                 let child = SearchTreeChild {
+                    parent_node_index: leaf_index,
                     your_action,
                     opponent_action_and_nodes,
                     min_reward,
                 };
-                self.children.push(child);
+                let child_index = self.insert_child(child);
+                // Come back and update nodes' parent child indexes.
+                for node_index in node_indexes {
+                    let node = self.get_node_mut(node_index);
+                    node.parent_child_index = Some(child_index);
+                }
             }
 
             // TODO: Back-propagate rewards.
@@ -116,8 +126,13 @@ impl<'a> SearchTree<'a> {
         }
     }
 
-    async fn make_node(&mut self, game: Game, model: &Model) -> Result<SearchTreeIndex<'a>> {
-        let node = make_node(game, model, self.depth).await?;
+    async fn make_node(
+        &mut self,
+        parent_child_index: Option<SearchTreeChildIndex<'a>>,
+        game: Game,
+        model: &Model,
+    ) -> Result<SearchTreeIndex<'a>> {
+        let node = make_node(parent_child_index, game, model, self.depth).await?;
         Ok(self.insert_node(node))
     }
 
@@ -153,10 +168,16 @@ pub fn snake_probable_actions(prediction: &Prediction) -> [ArrayVec<[Direction; 
     probable_actions
 }
 
-async fn make_node<'a>(game: Game, model: &Model, depth: usize) -> Result<SearchTreeNode<'a>> {
+async fn make_node<'a>(
+    parent_child_index: Option<SearchTreeChildIndex<'a>>,
+    game: Game,
+    model: &Model,
+    depth: usize,
+) -> Result<SearchTreeNode<'a>> {
     let prediction = model.predict(&game)?;
     let probable_actions = snake_probable_actions(&prediction);
     let node = SearchTreeNode {
+        parent_child_index,
         game,
         depth,
         rewards: prediction.values,
@@ -186,14 +207,15 @@ async fn expand_leaf_node(
                     let mut game = leaf_node.game.clone();
                     game.step(&[*d0, *d1, *d2, *d3]);
                     match game.outcome() {
-                        Outcome::None => make_node(game, model, depth)
+                        Outcome::None => make_node(None, game, model, depth)
                             .await
                             .map(|node| (actions, node)),
-                        Outcome::Winner(winner) => {
-                            Ok((actions, SearchTreeNode::terminal(game, depth, Some(winner))))
-                        }
+                        Outcome::Winner(winner) => Ok((
+                            actions,
+                            SearchTreeNode::terminal(None, game, depth, Some(winner)),
+                        )),
                         Outcome::Match => {
-                            Ok((actions, SearchTreeNode::terminal(game, depth, None)))
+                            Ok((actions, SearchTreeNode::terminal(None, game, depth, None)))
                         }
                     }
                 })
@@ -244,6 +266,7 @@ async fn prune_leaf_nodes(nodes: &mut Vec<([Direction; 4], SearchTreeNode<'_>)>)
 
 #[derive(Clone, Debug)]
 pub struct SearchTreeNode<'a> {
+    pub parent_child_index: Option<SearchTreeChildIndex<'a>>,
     pub game: Game,
     pub depth: usize,
     pub rewards: [f64; 4],
@@ -252,12 +275,18 @@ pub struct SearchTreeNode<'a> {
 }
 
 impl<'a> SearchTreeNode<'a> {
-    fn terminal(game: Game, depth: usize, winner: Option<u8>) -> Self {
+    fn terminal(
+        parent_child_index: Option<SearchTreeChildIndex<'a>>,
+        game: Game,
+        depth: usize,
+        winner: Option<u8>,
+    ) -> Self {
         let mut rewards = [LOSE_REWARD; 4];
         if let Some(player_id) = winner {
             rewards[player_id as usize] = WIN_REWARD;
         }
         Self {
+            parent_child_index,
             game,
             depth,
             rewards,
@@ -269,6 +298,7 @@ impl<'a> SearchTreeNode<'a> {
 
 #[derive(Clone, Debug, Default)]
 struct SearchTreeChild<'a> {
+    pub parent_node_index: SearchTreeIndex<'a>,
     pub your_action: Direction,
     pub opponent_action_and_nodes: Vec<([Direction; 3], SearchTreeIndex<'a>)>,
     pub min_reward: f64,

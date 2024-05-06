@@ -48,64 +48,63 @@ impl<'a> SearchTree<'a> {
     }
 
     pub async fn compute_next_layer(&mut self, model: &Model) -> Result<Direction> {
-        let new_leaf_nodes = self
-            .leaf_nodes
-            .iter()
-            .copied()
-            .map(|leaf_index| self.expand_leaf_node(leaf_index, model));
-        let new_leaf_nodes = Vec::with_capacity(self.leaf_nodes.len() * 4);
+        let mut new_leaf_nodes = Vec::with_capacity(self.leaf_nodes.len());
         // TODO: Make parallel.
         for &leaf_index in &self.leaf_nodes {
-            let expansion = self.expand_leaf_node(leaf_index, model).await?;
-            // TODO: Alpha-Beta Pruning.
+            let leaf_node = self.get_node(leaf_index);
+            // TODO: Handle terminal nodes.
+            let children = expand_leaf_node(leaf_node, model, self.depth).await?;
+            new_leaf_nodes.push((leaf_index, children));
+        }
+        let new_leaf_nodes = new_leaf_nodes;
+        // TODO: Alpha-Beta Pruning.
 
-            // TODO: Update list of leaf nodes.
+        self.leaf_nodes.clear();
+        // Reserve space for new nodes and children.
+        let n_new_nodes = new_leaf_nodes
+            .iter()
+            .map(|(_, children)| {
+                children
+                    .iter()
+                    .map(|child| child.opponent_action_and_nodes.len())
+                    .sum::<usize>()
+            })
+            .sum();
+        self.nodes.reserve(n_new_nodes);
+        self.leaf_nodes.reserve(n_new_nodes);
+        let n_new_children = new_leaf_nodes
+            .iter()
+            .map(|(_, children)| children.len())
+            .sum();
+        self.children.reserve(n_new_children);
+
+        for (leaf_index, children) in new_leaf_nodes {
+            for OwnedChild {
+                your_action,
+                opponent_action_and_nodes,
+                min_reward,
+            } in children
+            {
+                let opponent_action_and_nodes = opponent_action_and_nodes
+                    .into_iter()
+                    .map(|(actions, node)| {
+                        let node_index = self.insert_node(node);
+                        self.leaf_nodes.push(node_index);
+                        (actions, node_index)
+                    })
+                    .collect::<Vec<_>>();
+                let child = SearchTreeChild {
+                    your_action,
+                    opponent_action_and_nodes,
+                    min_reward,
+                };
+                self.children.push(child);
+            }
+
             // TODO: Back-propagate rewards.
         }
-        self.leaf_nodes = new_leaf_nodes;
 
         todo!()
-    }
-
-    async fn expand_leaf_node(
-        &self,
-        leaf_index: SearchTreeIndex<'a>,
-        model: &Model,
-    ) -> Result<ArrayVec<[Vec<([Direction; 4], SearchTreeNode<'a>)>; 3]>> {
-        let leaf_node = self.get_node(leaf_index);
-        let actions = &leaf_node.probable_actions;
-        let opponent_action_combos = actions[1]
-            .iter()
-            .cartesian_product(&actions[2])
-            .cartesian_product(&actions[3]);
-        // TODO: Make parallel.
-        // TODO: Alpha-Beta pruning (referencing `prune_leaf_nodes`).
-        let your_action_and_children = stream::iter(&actions[0])
-            .then(|d0| {
-                stream::iter(opponent_action_combos.clone())
-                    .then(|((d1, d2), d3)| async {
-                        let actions = [*d0, *d1, *d2, *d3];
-                        let mut game = leaf_node.game.clone();
-                        game.step(&actions);
-                        match game.outcome() {
-                            Outcome::None => make_node(game, model, self.depth)
-                                .await
-                                .map(|node| (actions, node)),
-                            Outcome::Winner(winner) => Ok((
-                                actions,
-                                SearchTreeNode::terminal(game, self.depth, Some(winner)),
-                            )),
-                            Outcome::Match => {
-                                Ok((actions, SearchTreeNode::terminal(game, self.depth, None)))
-                            }
-                        }
-                    })
-                    .try_collect::<Vec<_>>()
-            })
-            .try_collect::<ArrayVec<_>>()
-            .await?;
-
-        Ok(your_action_and_children)
     }
 
     fn insert_node(&mut self, node: SearchTreeNode<'a>) -> SearchTreeIndex<'a> {
@@ -167,6 +166,57 @@ async fn make_node<'a>(game: Game, model: &Model, depth: usize) -> Result<Search
     Ok(node)
 }
 
+async fn expand_leaf_node(
+    leaf_node: &SearchTreeNode<'_>,
+    model: &Model,
+    depth: usize,
+) -> Result<ArrayVec<[OwnedChild; 3]>> {
+    let actions = &leaf_node.probable_actions;
+    let opponent_action_combos = actions[1]
+        .iter()
+        .cartesian_product(&actions[2])
+        .cartesian_product(&actions[3]);
+    // TODO: Make parallel.
+    // TODO: Alpha-Beta pruning (referencing `prune_leaf_nodes`).
+    let your_action_and_children = stream::iter(&actions[0])
+        .then(|d0| async {
+            stream::iter(opponent_action_combos.clone())
+                .then(|((d1, d2), d3)| async {
+                    let actions = [*d1, *d2, *d3];
+                    let mut game = leaf_node.game.clone();
+                    game.step(&[*d0, *d1, *d2, *d3]);
+                    match game.outcome() {
+                        Outcome::None => make_node(game, model, depth)
+                            .await
+                            .map(|node| (actions, node)),
+                        Outcome::Winner(winner) => {
+                            Ok((actions, SearchTreeNode::terminal(game, depth, Some(winner))))
+                        }
+                        Outcome::Match => {
+                            Ok((actions, SearchTreeNode::terminal(game, depth, None)))
+                        }
+                    }
+                })
+                .try_collect::<Vec<_>>()
+                .await
+                .map(|opponent_action_and_nodes| {
+                    let min_reward = opponent_action_and_nodes
+                        .iter()
+                        .map(|(_, node)| node.rewards[0])
+                        .fold(f64::MAX, |a, b| a.min(b));
+                    OwnedChild {
+                        your_action: *d0,
+                        opponent_action_and_nodes,
+                        min_reward,
+                    }
+                })
+        })
+        .try_collect::<ArrayVec<_>>()
+        .await?;
+
+    Ok(your_action_and_children)
+}
+
 // TODO: Remove after implementing Alpha-Beta pruning.
 async fn prune_leaf_nodes(nodes: &mut Vec<([Direction; 4], SearchTreeNode<'_>)>) {
     if nodes.is_empty() {
@@ -220,7 +270,15 @@ impl<'a> SearchTreeNode<'a> {
 #[derive(Clone, Debug, Default)]
 struct SearchTreeChild<'a> {
     pub your_action: Direction,
-    pub opponent_action_and_nodes: ArrayVec<[([Direction; 3], SearchTreeIndex<'a>); 3]>,
+    pub opponent_action_and_nodes: Vec<([Direction; 3], SearchTreeIndex<'a>)>,
+    pub min_reward: f64,
+}
+
+#[derive(Default)]
+struct OwnedChild {
+    pub your_action: Direction,
+    pub opponent_action_and_nodes: Vec<([Direction; 3], SearchTreeNode<'static>)>,
+    pub min_reward: f64,
 }
 
 #[derive(Copy)]

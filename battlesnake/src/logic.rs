@@ -1,4 +1,5 @@
-use tokio::{pin, select, spawn, sync::mpsc, time};
+use tokio::time;
+use tokio_scoped::scope;
 
 use model::*;
 
@@ -24,30 +25,18 @@ pub async fn respond_move(
 async fn make_move(game: &Game, timeout: Duration, model: Arc<Model>) -> Result<Direction> {
     info!(?game);
 
-    let (sender, mut receiver) = mpsc::channel(8);
-
-    let searches = tree_searches(game.clone(), sender, model);
-    let searches = time::timeout(timeout, searches);
-    let searches = async move {
-        match searches.await {
-            Ok(Err(why)) => error!(?why, "tree_searches"),
-            Ok(Ok(())) | Err(_) => {}
-        }
-    };
-    let mut searches = spawn(searches);
-
-    let extra_safety_sleeper = time::sleep(timeout);
-    pin!(extra_safety_sleeper);
-
     let mut direction = None;
-    while let Some(new_direction) = select! {
-        new_direction = receiver.recv() => new_direction,
-        _ = &mut searches => None,
-        _ = &mut extra_safety_sleeper => None,
-    } {
-        direction = Some(new_direction);
-        debug!(?new_direction);
-    }
+    scope(|scope| {
+        let searches = tree_searches(game.clone(), &mut direction, model);
+        let searches = time::timeout(timeout, searches);
+        let searches = async move {
+            match searches.await {
+                Ok(Err(why)) => error!(?why, "tree_searches"),
+                Ok(Ok(())) | Err(_) => {}
+            }
+        };
+        scope.spawn(searches);
+    });
 
     let direction = direction.context("Tree search did not return a direction")?;
     info!(?direction);
@@ -59,7 +48,7 @@ const TOO_MANY_NODES: usize = 0x8_000;
 
 async fn tree_searches(
     game: Game,
-    sender: mpsc::Sender<Direction>,
+    direction: &mut Option<Direction>,
     model: Arc<Model>,
 ) -> Result<()> {
     let mut search_tree = SearchTree::try_new(game, &model).await?;
@@ -73,11 +62,10 @@ async fn tree_searches(
             break;
         }
         let more_layers_exist = search_tree.compute_next_layer(&model).await?;
-        let new_direction = search_tree
-            .best_direction()
-            .context("No result from search tree")?;
-        sender.send(new_direction).await?;
-        debug!(?new_direction, ?search_tree.depth, "Sent");
+        if let Some(new_direction) = search_tree.best_direction() {
+            *direction = Some(new_direction);
+            debug!(?new_direction, "Updated");
+        }
         if !more_layers_exist {
             info!("Search complete");
             break;

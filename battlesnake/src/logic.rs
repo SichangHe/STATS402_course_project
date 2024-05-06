@@ -17,6 +17,7 @@ pub async fn respond_move(game: &Game, timeout: Duration) -> Result<MoveResponse
 
 #[instrument(skip(game))]
 async fn make_move(game: &Game, timeout: Duration) -> Result<Direction> {
+    debug!(?game);
     let (sender, mut receiver) = mpsc::channel(8);
 
     let searches = tree_searches(game, sender);

@@ -55,7 +55,7 @@ impl<'a> SearchTree<'a> {
             leaf_node_new_children.push((leaf_index, children));
         }
         let leaf_node_new_children = leaf_node_new_children;
-        trace!(?leaf_node_new_children);
+        trace!(leaf_node_new_children_len = leaf_node_new_children.len());
         // TODO: Alpha-Beta Pruning.
 
         self.leaf_nodes.clear();
@@ -122,7 +122,6 @@ impl<'a> SearchTree<'a> {
 
         self.back_propagate_rewards();
         self.depth += 1;
-        trace!(?self);
         info!(
             ?self.depth,
             n_node = self.nodes.len(),
@@ -282,7 +281,12 @@ async fn expand_leaf_node(
         .try_collect::<ArrayVec<_>>()
         .await?;
 
-    trace!(?your_action_and_children);
+    trace!(
+        your_action_and_min_rewards = ?your_action_and_children
+            .iter()
+            .map(|child: &OwnedChild| (child.your_action, child.min_reward))
+            .collect::<Vec<_>>()
+    );
     Ok(your_action_and_children)
 }
 

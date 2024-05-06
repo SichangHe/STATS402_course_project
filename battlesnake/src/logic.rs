@@ -52,7 +52,7 @@ async fn tree_searches(
     let mut search_tree = SearchTree::try_new(game, model).await?;
 
     loop {
-        if search_tree.nodes.len() < TOO_MANY_NODES {
+        if search_tree.nodes.len() >= TOO_MANY_NODES {
             warn!(
                 n_search_tree_node = search_tree.nodes.len(),
                 "Too many nodes"
@@ -62,18 +62,18 @@ async fn tree_searches(
         let current_timeout = timeout
             .checked_sub(start_instant.elapsed())
             .unwrap_or(NO_TIME);
-        match time::timeout(current_timeout, search_tree.compute_next_layer(model)).await {
-            Ok(maybe_more_layers_exist) => {
-                if !maybe_more_layers_exist? {
-                    info!("Search complete");
-                    break;
-                }
-            }
-            Err(_timed_out) => break,
-        }
+        let more_layers_exist =
+            match time::timeout(current_timeout, search_tree.compute_next_layer(model)).await {
+                Ok(maybe_more_layers_exist) => maybe_more_layers_exist?,
+                Err(_timed_out) => break,
+            };
         if let Some(new_direction) = search_tree.best_direction() {
             *direction = Some(new_direction);
             debug!(?new_direction, "Updated");
+        }
+        if !more_layers_exist {
+            info!("Search complete");
+            break;
         }
     }
 

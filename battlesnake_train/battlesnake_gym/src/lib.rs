@@ -18,7 +18,7 @@ use snork_engine::{
 use tracing::*;
 use tracing_subscriber::EnvFilter;
 
-mod observations;
+pub mod observations;
 
 use observations::*;
 
@@ -234,13 +234,13 @@ fn snake_facing(snake: &Snake) -> Option<isize> {
 }
 
 /// 0: Up, 1: Right, 2: Down, 3: Left.
-fn snake_true_move(snake: &Snake, relative_move: isize) -> isize {
+pub fn snake_true_move(snake: &Snake, relative_move: isize) -> isize {
     let facing = snake_facing(snake).unwrap_or(0);
     (relative_move + facing).rem_euclid(4)
 }
 
 /// 0: Up, 1: Right, 2: Down, 3: Left.
-fn snake_relative_move(snake: &Snake, true_move: isize) -> isize {
+pub fn snake_relative_move(snake: &Snake, true_move: isize) -> isize {
     let facing = snake_facing(snake).unwrap_or(0);
     (true_move - facing).rem_euclid(4)
 }

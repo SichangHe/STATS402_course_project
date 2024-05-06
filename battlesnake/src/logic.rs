@@ -77,7 +77,7 @@ async fn tree_searches(
             .best_direction()
             .context("No result from search tree")?;
         sender.send(new_direction).await?;
-        debug!(?new_direction, "Sent");
+        debug!(?new_direction, ?search_tree.depth, "Sent");
         if !more_layers_exist {
             info!("Search complete");
             break;

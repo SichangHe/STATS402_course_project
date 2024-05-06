@@ -270,14 +270,14 @@ async fn expand_leaf_node(
     depth: usize,
 ) -> Result<ArrayVec<[OwnedChild; 3]>> {
     let action_probs = &leaf_node.action_probabilities;
-    let mut half_max_action_prob = 0.5;
+    let mut three_quaters_max_action_prob = 0.75;
     for action_prob in action_probs {
         let max_prob = action_prob
             .iter()
             .copied()
             .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
             .unwrap_or(f64::MIN);
-        half_max_action_prob *= max_prob;
+        three_quaters_max_action_prob *= max_prob;
     }
 
     // TODO: Make parallel.
@@ -288,7 +288,7 @@ async fn expand_leaf_node(
             continue;
         }
         let mut opponent_action_and_nodes = Vec::with_capacity(27);
-        let mut min_reward = f64::MAX;
+        let mut max_rewards = [f64::MIN; 4];
         for (d1, &prob1) in DIRECTIONS.into_iter().zip(&action_probs[1]) {
             if prob1 <= 0.0 {
                 continue;
@@ -301,7 +301,7 @@ async fn expand_leaf_node(
                     if prob3 <= 0.0 {
                         continue;
                     }
-                    if prob0 * prob1 * prob2 * prob3 < half_max_action_prob {
+                    if prob0 * prob1 * prob2 * prob3 < three_quaters_max_action_prob {
                         continue;
                     }
                     let mut game = leaf_node.game.clone();
@@ -314,13 +314,37 @@ async fn expand_leaf_node(
                         }
                         Outcome::Match => SearchTreeNode::terminal(None, game, depth, None),
                     };
-                    min_reward = min_reward.min(node.rewards[0]);
+
+                    for (player_id, &reward) in node.rewards.iter().enumerate() {
+                        max_rewards[player_id] = max_rewards[player_id].max(reward);
+                    }
                     opponent_action_and_nodes.push(([d1, d2, d3], node));
                 }
             }
         }
 
+        for max_reward in max_rewards.iter_mut() {
+            *max_reward = if *max_reward > 0.0 {
+                *max_reward * 0.75
+            } else {
+                *max_reward / 0.75
+            };
+        }
+        // Assume that the opponent will try to maximize their rewards.
+        opponent_action_and_nodes.retain(|(_, node)| {
+            node.rewards[1] >= max_rewards[1]
+                && node.rewards[2] >= max_rewards[2]
+                && node.rewards[3] >= max_rewards[3]
+        });
         opponent_action_and_nodes.shrink_to_fit();
+
+        // Compute the minimum reward after having the opponents choose
+        // desirable actions.
+        let min_reward = opponent_action_and_nodes
+            .iter()
+            .map(|(_, node)| node.rewards[0])
+            .min_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
+            .unwrap_or(f64::MIN);
         let child = OwnedChild {
             your_action: d0,
             opponent_action_and_nodes,

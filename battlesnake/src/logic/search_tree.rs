@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use tracing::instrument::WithSubscriber;
-
 use super::*;
 
 #[derive(Clone, Debug)]
@@ -236,66 +234,101 @@ async fn make_node<'a>(
 ) -> Result<SearchTreeNode<'a>> {
     let (game, prediction) = model.predict(game).await?;
     let prediction = prediction?;
-    let probable_actions = snake_probable_actions(&prediction);
+    let mut action_probabilities = [[0.0; 4]; 4];
+    for (player_id, policy_logit) in prediction.policy_logits.iter().enumerate() {
+        let mut sum = 0.0;
+        for (action_index, &logit) in policy_logit.iter().enumerate() {
+            let raw_prob = logit.exp();
+            action_probabilities[player_id][action_index] = raw_prob;
+            sum += raw_prob;
+        }
+        for action_index in 0..4 {
+            action_probabilities[player_id][action_index] /= sum;
+        }
+    }
     let node = SearchTreeNode {
         parent_child_index,
         game,
         depth,
         rewards: prediction.values,
-        probable_actions,
+        action_probabilities,
         children: Default::default(),
     };
     Ok(node)
 }
+
+const DIRECTIONS: [Direction; 4] = [
+    Direction::Up,
+    Direction::Right,
+    Direction::Down,
+    Direction::Left,
+];
 
 async fn expand_leaf_node(
     leaf_node: &SearchTreeNode<'_>,
     model: &Model,
     depth: usize,
 ) -> Result<ArrayVec<[OwnedChild; 3]>> {
-    let actions = &leaf_node.probable_actions;
-    let opponent_action_combos = actions[1]
-        .iter()
-        .cartesian_product(&actions[2])
-        .cartesian_product(&actions[3]);
+    let action_probs = &leaf_node.action_probabilities;
+    let mut half_max_action_prob = 0.5;
+    for action_prob in action_probs {
+        let max_prob = action_prob
+            .iter()
+            .copied()
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
+            .unwrap_or(f64::MIN);
+        half_max_action_prob *= max_prob;
+    }
+
     // TODO: Make parallel.
     // TODO: Alpha-Beta pruning (referencing `prune_leaf_nodes`).
-    let your_action_and_children = stream::iter(&actions[0])
-        .then(|d0| async {
-            stream::iter(opponent_action_combos.clone())
-                .then(|((d1, d2), d3)| async {
-                    let actions = [*d1, *d2, *d3];
+    let mut your_action_and_children = ArrayVec::<[OwnedChild; 3]>::default();
+    for (d0, &prob0) in DIRECTIONS.into_iter().zip(&action_probs[0]) {
+        if prob0 <= 0.0 {
+            continue;
+        }
+        let mut opponent_action_and_nodes = Vec::with_capacity(27);
+        let mut min_reward = f64::MAX;
+        for (d1, &prob1) in DIRECTIONS.into_iter().zip(&action_probs[1]) {
+            if prob1 <= 0.0 {
+                continue;
+            }
+            for (d2, &prob2) in DIRECTIONS.into_iter().zip(&action_probs[2]) {
+                if prob2 <= 0.0 {
+                    continue;
+                }
+                for (d3, &prob3) in DIRECTIONS.into_iter().zip(&action_probs[3]) {
+                    if prob3 <= 0.0 {
+                        continue;
+                    }
+                    if prob0 * prob1 * prob2 * prob3 < half_max_action_prob {
+                        continue;
+                    }
                     let mut game = leaf_node.game.clone();
-                    game.step(&[*d0, *d1, *d2, *d3]);
-                    match game.outcome() {
-                        Outcome::None => make_node(None, game, model, depth)
-                            .await
-                            .map(|node| (actions, node)),
-                        Outcome::Winner(winner) => Ok((
-                            actions,
-                            SearchTreeNode::terminal(None, game, depth, Some(winner)),
-                        )),
-                        Outcome::Match => {
-                            Ok((actions, SearchTreeNode::terminal(None, game, depth, None)))
+                    game.step(&[d0, d1, d2, d3]);
+
+                    let node = match game.outcome() {
+                        Outcome::None => make_node(None, game, model, depth).await?,
+                        Outcome::Winner(winner) => {
+                            SearchTreeNode::terminal(None, game, depth, Some(winner))
                         }
-                    }
-                })
-                .try_collect::<Vec<_>>()
-                .await
-                .map(|opponent_action_and_nodes| {
-                    let min_reward = opponent_action_and_nodes
-                        .iter()
-                        .map(|(_, node)| node.rewards[0])
-                        .fold(f64::MAX, |a, b| a.min(b));
-                    OwnedChild {
-                        your_action: *d0,
-                        opponent_action_and_nodes,
-                        min_reward,
-                    }
-                })
-        })
-        .try_collect::<ArrayVec<_>>()
-        .await?;
+                        Outcome::Match => SearchTreeNode::terminal(None, game, depth, None),
+                    };
+                    min_reward = min_reward.min(node.rewards[0]);
+                    opponent_action_and_nodes.push(([d1, d2, d3], node));
+                }
+            }
+        }
+
+        opponent_action_and_nodes.shrink_to_fit();
+        let child = OwnedChild {
+            your_action: d0,
+            opponent_action_and_nodes,
+            min_reward,
+        };
+        your_action_and_children.push(child);
+    }
+
     Ok(your_action_and_children)
 }
 
@@ -343,7 +376,7 @@ pub struct SearchTreeNode<'a> {
     pub depth: usize,
     /// Currently we keep rewards for all players, but only yours is used.
     pub rewards: [f64; 4],
-    pub probable_actions: [ArrayVec<[Direction; 3]>; 4],
+    pub action_probabilities: [[f64; 4]; 4],
     pub children: ArrayVec<[SearchTreeChildIndex<'a>; 3]>,
 }
 
@@ -363,7 +396,7 @@ impl<'a> SearchTreeNode<'a> {
             game,
             depth,
             rewards,
-            probable_actions: Default::default(),
+            action_probabilities: Default::default(),
             children: Default::default(),
         }
     }

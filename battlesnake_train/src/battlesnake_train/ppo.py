@@ -24,6 +24,7 @@ from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.common.type_aliases import MaybeCallback, Schedule
 from stable_baselines3.common.utils import obs_as_tensor
 from torch import Tensor
+from torch.distributions import Categorical
 
 from battlesnake_train.buf import GrowableRolloutBuffer
 from battlesnake_train.disk import all_prev_models, find_last_model
@@ -649,6 +650,29 @@ class DynPPO:
             agent: action[index]
             for index, (agent, _) in enumerate(observations.items())
         }, next_state
+
+    def policy_logits_and_values(self, observations: list[NDArray]):
+        obs = np.asarray(observations)
+        policy = self.ppo.policy
+        policy.set_training_mode(False)
+        obs_tensor, _ = policy.obs_to_tensor(obs)
+
+        with th.no_grad():
+            features = policy.extract_features(obs_tensor)
+            if policy.share_features_extractor:
+                latent_pi, latent_vf = policy.mlp_extractor(features)
+            else:
+                pi_features, vf_features = features
+                latent_pi = policy.mlp_extractor.forward_actor(pi_features)
+                latent_vf = policy.mlp_extractor.forward_critic(vf_features)
+            distribution: Categorical = policy._get_action_dist_from_latent(  # type: ignore[reportAssignmentType]
+                latent_pi
+            ).distribution
+            values_tensor = policy.value_net(latent_vf)
+        policy_logits: list[list[float]] = distribution.logits.tolist()  # type: ignore[reportGeneralTypeIssues]
+        values: list[float] = values_tensor.flatten().tolist()
+
+        return policy_logits, values
 
     @classmethod
     def load_trial(

@@ -310,13 +310,13 @@ fn prune_node_new_children(
     let mut node_max_rewards = HashMap::with_capacity(n_prev_leaf_node);
     for (parent_index, children) in &*leaf_node_new_children {
         let entry = node_max_rewards.entry(*parent_index).or_insert(f64::MIN);
-        *entry = entry.max(
-            children
-                .iter()
-                .map(|child| child.min_reward)
-                .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
-                .unwrap_or(f64::MIN),
-        );
+        let max_reward = children
+            .iter()
+            .map(|child| child.min_reward)
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
+            .unwrap_or(f64::MIN);
+        trace!(?parent_index, max_reward);
+        *entry = entry.max(max_reward);
     }
     let half_max_reward = node_max_rewards
         .iter()
@@ -324,6 +324,7 @@ fn prune_node_new_children(
         .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
         .unwrap_or(f64::MIN)
         / 2.0;
+    trace!(half_max_reward);
 
     leaf_node_new_children
         .retain(|(parent_index, _)| node_max_rewards[parent_index] >= half_max_reward);

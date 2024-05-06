@@ -222,6 +222,7 @@ pub fn snake_probable_actions(prediction: &Prediction) -> [ArrayVec<[Direction; 
     probable_actions
 }
 
+#[inline(never)]
 async fn make_node<'a>(
     parent_child_index: Option<SearchTreeChildIndex<'a>>,
     game: Game,

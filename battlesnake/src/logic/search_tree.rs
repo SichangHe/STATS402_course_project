@@ -27,10 +27,6 @@ impl<'a> SearchTree<'a> {
         &self.nodes[0]
     }
 
-    pub fn root_mut(&mut self) -> &mut SearchTreeNode<'a> {
-        &mut self.nodes[0]
-    }
-
     pub fn get_node(&self, index: SearchTreeIndex<'a>) -> &SearchTreeNode<'a> {
         &self.nodes[index.index]
     }
@@ -48,20 +44,22 @@ impl<'a> SearchTree<'a> {
     }
 
     pub async fn compute_next_layer(&mut self, model: &Model) -> Result<Direction> {
-        let mut new_leaf_nodes = Vec::with_capacity(self.leaf_nodes.len());
+        let mut leaf_node_new_children = Vec::with_capacity(self.leaf_nodes.len());
         // TODO: Make parallel.
         for &leaf_index in &self.leaf_nodes {
             let leaf_node = self.get_node(leaf_index);
-            // TODO: Handle terminal nodes.
+            if leaf_node.rewards[0] == WIN_REWARD || leaf_node.rewards[0] == LOSE_REWARD {
+                continue; // Terminal nodes do not have children.
+            }
             let children = expand_leaf_node(leaf_node, model, self.depth).await?;
-            new_leaf_nodes.push((leaf_index, children));
+            leaf_node_new_children.push((leaf_index, children));
         }
-        let new_leaf_nodes = new_leaf_nodes;
+        let leaf_node_new_children = leaf_node_new_children;
         // TODO: Alpha-Beta Pruning.
 
         self.leaf_nodes.clear();
         // Reserve space for new nodes and children.
-        let n_new_nodes = new_leaf_nodes
+        let n_new_nodes = leaf_node_new_children
             .iter()
             .map(|(_, children)| {
                 children
@@ -72,13 +70,14 @@ impl<'a> SearchTree<'a> {
             .sum();
         self.nodes.reserve(n_new_nodes);
         self.leaf_nodes.reserve(n_new_nodes);
-        let n_new_children = new_leaf_nodes
+        let n_new_children = leaf_node_new_children
             .iter()
             .map(|(_, children)| children.len())
             .sum();
         self.children.reserve(n_new_children);
+        let _break_future = async {}.await;
 
-        for (leaf_index, children) in new_leaf_nodes {
+        for (leaf_index, children) in leaf_node_new_children {
             for OwnedChild {
                 your_action,
                 opponent_action_and_nodes,
@@ -109,6 +108,7 @@ impl<'a> SearchTree<'a> {
                     let node = self.get_node_mut(node_index);
                     node.parent_child_index = Some(child_index);
                 }
+                let _break_future = async {}.await;
             }
         }
 
@@ -299,6 +299,7 @@ pub struct SearchTreeNode<'a> {
     pub parent_child_index: Option<SearchTreeChildIndex<'a>>,
     pub game: Game,
     pub depth: usize,
+    /// Currently we keep rewards for all players, but only yours is used.
     pub rewards: [f64; 4],
     pub probable_actions: [ArrayVec<[Direction; 3]>; 4],
     pub children: ArrayVec<[SearchTreeChildIndex<'a>; 3]>,

@@ -6,7 +6,7 @@ use super::*;
 
 mod search_tree;
 
-use search_tree::SearchTree;
+use search_tree::*;
 
 const NO_TIME: Duration = Duration::from_secs(0);
 

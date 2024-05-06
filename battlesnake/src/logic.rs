@@ -18,7 +18,7 @@ pub async fn respond_move(game: &Game, timeout: Duration) -> Result<MoveResponse
 
 #[instrument(skip(game))]
 async fn make_move(game: &Game, timeout: Duration) -> Result<Direction> {
-    debug!(?game);
+    info!(?game);
 
     let (sender, mut receiver) = mpsc::channel(8);
 
@@ -53,8 +53,11 @@ async fn tree_searches(game: Game, sender: mpsc::Sender<Direction>) -> Result<()
     let model = Model::new();
     let mut search_tree = SearchTree::try_new(game, &model).await?;
 
-    while search_tree.nodes.len() < TOO_MANY_NODES {
-        let new_direction = search_tree.compute_next_layer(&model).await?;
+    while search_tree.nodes.len() < TOO_MANY_NODES && search_tree.compute_next_layer(&model).await?
+    {
+        let new_direction = search_tree
+            .best_direction()
+            .context("No result from search tree")?;
         sender.send(new_direction).await?;
         debug!(?new_direction, "Sent");
     }

@@ -43,7 +43,8 @@ impl<'a> SearchTree<'a> {
         &mut self.children[index.index]
     }
 
-    pub async fn compute_next_layer(&mut self, model: &Model) -> Result<Direction> {
+    /// Returns if there are more layers.
+    pub async fn compute_next_layer(&mut self, model: &Model) -> Result<bool> {
         let mut leaf_node_new_children = Vec::with_capacity(self.leaf_nodes.len());
         trace!(?self.leaf_nodes);
         // TODO: Make parallel.
@@ -57,6 +58,10 @@ impl<'a> SearchTree<'a> {
         }
         let leaf_node_new_children = leaf_node_new_children;
         trace!(leaf_node_new_children_len = leaf_node_new_children.len());
+        if leaf_node_new_children.is_empty() {
+            // No leaf nodes to expand.
+            return Ok(false);
+        }
         // TODO: Alpha-Beta Pruning.
 
         self.leaf_nodes.clear();
@@ -129,19 +134,7 @@ impl<'a> SearchTree<'a> {
             n_child = self.children.len(),
             n_leaf_node = self.leaf_nodes.len(),
         );
-        self.root()
-            .children
-            .iter()
-            .copied()
-            .map(|child_index| self.get_child(child_index))
-            .max_by(|child0, child1| {
-                child0
-                    .min_reward
-                    .partial_cmp(&child1.min_reward)
-                    .unwrap_or(Ordering::Equal)
-            })
-            .map(|child| child.your_action)
-            .context("Root node don't have children.")
+        Ok(true)
     }
 
     fn back_propagate_rewards(&mut self) {
@@ -161,6 +154,21 @@ impl<'a> SearchTree<'a> {
                 parent_child.min_reward = parent_child.min_reward.min(reward);
             }
         }
+    }
+
+    pub fn best_direction(&self) -> Option<Direction> {
+        self.root()
+            .children
+            .iter()
+            .copied()
+            .map(|child_index| self.get_child(child_index))
+            .max_by(|child0, child1| {
+                child0
+                    .min_reward
+                    .partial_cmp(&child1.min_reward)
+                    .unwrap_or(Ordering::Equal)
+            })
+            .map(|child| child.your_action)
     }
 
     fn insert_node(&mut self, node: SearchTreeNode<'a>) -> SearchTreeIndex<'a> {

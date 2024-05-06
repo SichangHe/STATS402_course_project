@@ -6,7 +6,7 @@ use tokio_gen_server::*;
 
 use super::*;
 
-struct ModelActor {
+pub struct ModelActor {
     py_model: Py<PyAny>,
     np_rot90: Py<PyAny>,
 }

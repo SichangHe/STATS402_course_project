@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use tracing::instrument::WithSubscriber;
+
 use super::*;
 
 #[derive(Clone, Debug)]
@@ -56,6 +60,8 @@ impl<'a> SearchTree<'a> {
             let children = expand_leaf_node(leaf_node, model, self.depth).await?;
             leaf_node_new_children.push((leaf_index, children));
         }
+        trace!(leaf_node_new_children_len_before_pruning = leaf_node_new_children.len());
+        prune_node_new_children(&mut leaf_node_new_children, self.leaf_nodes.len());
         let leaf_node_new_children = leaf_node_new_children;
         trace!(leaf_node_new_children_len = leaf_node_new_children.len());
         if leaf_node_new_children.is_empty() {
@@ -293,29 +299,34 @@ async fn expand_leaf_node(
     Ok(your_action_and_children)
 }
 
-// TODO: Remove after implementing Alpha-Beta pruning.
-async fn prune_leaf_nodes(nodes: &mut Vec<([Direction; 4], SearchTreeNode<'_>)>) {
-    if nodes.is_empty() {
+/// Prunes leaf nodes that are not at least giving half the maximum reward.
+fn prune_node_new_children(
+    leaf_node_new_children: &mut Vec<(SearchTreeIndex<'_>, ArrayVec<[OwnedChild; 3]>)>,
+    n_prev_leaf_node: usize,
+) {
+    if leaf_node_new_children.is_empty() {
         return;
     }
-    let mut your_max_reward = f64::MIN;
-    let mut your_max_rewards = [f64::MIN; 4];
-    for (actions, node) in nodes.iter() {
-        let your_reward = node.rewards[0];
-        if your_reward > your_max_reward {
-            your_max_reward = your_reward;
-        }
-        let action_id = direction2snake_true_move(actions[0]) as usize;
-        if your_reward > your_max_rewards[action_id] {
-            your_max_rewards[action_id] = your_reward;
-        }
+    let mut node_max_rewards = HashMap::with_capacity(n_prev_leaf_node);
+    for (parent_index, children) in &*leaf_node_new_children {
+        let entry = node_max_rewards.entry(*parent_index).or_insert(f64::MIN);
+        *entry = entry.max(
+            children
+                .iter()
+                .map(|child| child.min_reward)
+                .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
+                .unwrap_or(f64::MIN),
+        );
     }
-    let half_your_max_reward = your_max_reward / 2.0;
-    nodes.retain(|(actions, _)| {
-        let action_id = direction2snake_true_move(actions[0]) as usize;
-        your_max_rewards[action_id] >= half_your_max_reward
-    });
-    todo!();
+    let half_max_reward = node_max_rewards
+        .iter()
+        .map(|(_, &reward)| reward)
+        .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
+        .unwrap_or(f64::MIN)
+        / 2.0;
+
+    leaf_node_new_children
+        .retain(|(parent_index, _)| node_max_rewards[parent_index] >= half_max_reward);
 }
 
 #[derive(Clone, Debug)]

@@ -5,6 +5,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use snork_engine::game::Snake;
 
 use crate::{info::Info, logic::respond_move, model::Model};
 
@@ -49,14 +50,26 @@ async fn handle_move(
     model: Arc<Model>,
 ) -> Json<MoveResponse> {
     info!(?game_request, "Move.");
-    let game = Game::from_request(&game_request);
+    let mut game = Game::from_request(&game_request);
+    fix_game(&mut game);
     let timeout = Duration::from_millis(game_request.game.timeout.saturating_sub(LATENCY_MS));
-    let move_to_take = respond_move(&game, timeout, &model).await.unwrap_or_else(|why| {
-        let direction = game.valid_moves(0).next().unwrap_or(Direction::Up);
-        warn!("Failed to make move, moving `{direction}`: {why:?}");
-        MoveResponse::new(direction)
-    });
+    let move_to_take = respond_move(&game, timeout, &model)
+        .await
+        .unwrap_or_else(|why| {
+            let direction = game.valid_moves(0).next().unwrap_or(Direction::Up);
+            warn!("Failed to make move, moving `{direction}`: {why:?}");
+            MoveResponse::new(direction)
+        });
     Json(move_to_take)
+}
+
+fn fix_game(game: &mut Game) {
+    if game.snakes.len() < 4 {
+        (0..(4 - game.snakes.len())).for_each(|_| {
+            let dead_snake = Snake::new(Default::default(), 0);
+            game.snakes.push(dead_snake);
+        });
+    }
 }
 
 #[instrument]

@@ -61,8 +61,7 @@ impl Model {
                     let state = self.np_rot90.call_bound(py, (state,), Some(&rot_kwargs))?;
                     Ok(state)
                 })
-                .collect::<Result<Vec<_>>>()?
-                .into_pyarray_bound(py);
+                .collect::<Result<Vec<_>>>()?;
             let (raw_policy_logits, raw_values): (Vec<[f64; 3]>, Vec<f64>) = self
                 .py_model
                 .call_method1(py, intern!(py, "policy_logits_and_values"), (observations,))?

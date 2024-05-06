@@ -44,14 +44,20 @@ async fn make_move(game: &Game, timeout: Duration) -> Result<Direction> {
     Ok(direction)
 }
 
+/// To avoid out of RAM.
+const TOO_MANY_NODES: usize = 0x100_000;
+
 async fn tree_searches(game: &Game, sender: mpsc::Sender<Direction>) -> Result<()> {
     let model = Model::new();
     let mut search_tree = SearchTree::try_new(game.clone(), &model).await?;
 
-    loop {
+    while search_tree.nodes.len() < TOO_MANY_NODES {
         let new_direction = search_tree.compute_next_layer(&model).await?;
         sender.send(new_direction).await?;
+        debug!(?new_direction, "Sent");
     }
+
+    Ok(())
 }
 
 fn actions_with_replaced(

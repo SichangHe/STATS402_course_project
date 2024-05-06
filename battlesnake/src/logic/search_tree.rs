@@ -281,8 +281,6 @@ async fn expand_leaf_node(
         })
         .try_collect::<ArrayVec<_>>()
         .await?;
-
-    trace!(n_your_action_and_children = your_action_and_children.len());
     Ok(your_action_and_children)
 }
 

@@ -1,4 +1,4 @@
-use tokio::{pin, select, sync::mpsc, time};
+use tokio::{select, spawn, sync::mpsc, time};
 
 use model::*;
 
@@ -19,16 +19,18 @@ pub async fn respond_move(game: &Game, timeout: Duration) -> Result<MoveResponse
 #[instrument(skip(game))]
 async fn make_move(game: &Game, timeout: Duration) -> Result<Direction> {
     debug!(?game);
+
     let (sender, mut receiver) = mpsc::channel(8);
 
-    let searches = tree_searches(game, sender);
-    let searches = time::timeout(timeout, async move {
+    let searches = tree_searches(game.clone(), sender);
+    let searches = time::timeout(timeout, searches);
+    let searches = async move {
         match searches.await {
-            Ok(()) => {}
-            Err(why) => error!(?why, "tree_searches"),
+            Ok(Err(why)) => error!(?why, "tree_searches"),
+            Ok(Ok(())) | Err(_) => {}
         }
-    });
-    pin!(searches);
+    };
+    let mut searches = spawn(searches);
 
     let mut direction = None;
     while let Some(new_direction) = select! {
@@ -45,11 +47,11 @@ async fn make_move(game: &Game, timeout: Duration) -> Result<Direction> {
 }
 
 /// To avoid out of RAM.
-const TOO_MANY_NODES: usize = 0x100_000;
+const TOO_MANY_NODES: usize = 0x8_000;
 
-async fn tree_searches(game: &Game, sender: mpsc::Sender<Direction>) -> Result<()> {
+async fn tree_searches(game: Game, sender: mpsc::Sender<Direction>) -> Result<()> {
     let model = Model::new();
-    let mut search_tree = SearchTree::try_new(game.clone(), &model).await?;
+    let mut search_tree = SearchTree::try_new(game, &model).await?;
 
     while search_tree.nodes.len() < TOO_MANY_NODES {
         let new_direction = search_tree.compute_next_layer(&model).await?;

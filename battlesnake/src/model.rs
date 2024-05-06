@@ -40,7 +40,14 @@ impl ModelActor {
     pub fn predict(&self, game: &Game) -> Result<Prediction> {
         trace!("Predicting.");
         let mut policy_logits = [[f64::NEG_INFINITY; 4]; 4];
-        let mut values = [LOSE_REWARD; 4];
+        for (player_id, policy_logit) in policy_logits.iter_mut().enumerate() {
+            if !game.snake_is_alive(player_id as u8) {
+                policy_logit[0] = 0.0;
+                continue;
+            }
+        }
+
+        let mut values = [0.0; 4];
         let (raw_states, snake_facings) = states(game);
 
         Python::with_gil(|py| -> Result<_> {

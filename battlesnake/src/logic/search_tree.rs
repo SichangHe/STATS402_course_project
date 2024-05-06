@@ -123,7 +123,7 @@ impl<'a> SearchTree<'a> {
 
         self.back_propagate_rewards();
         self.depth += 1;
-        info!(
+        debug!(
             ?self.depth,
             n_node = self.nodes.len(),
             n_child = self.children.len(),

@@ -27,7 +27,7 @@ impl Model {
             let model = DynPPO.call_method(
                 "load_trial",
                 (env,),
-                Some(&[("save_model_name", "vit_tiny")].into_py_dict_bound(py)),
+                Some(&[("save_model_name", "vit-tiny")].into_py_dict_bound(py)),
             )?;
             let trial_index = model.getattr("trial_index")?;
             info!(?trial_index);

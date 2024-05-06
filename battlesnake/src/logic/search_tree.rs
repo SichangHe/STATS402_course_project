@@ -45,6 +45,7 @@ impl<'a> SearchTree<'a> {
 
     pub async fn compute_next_layer(&mut self, model: &Model) -> Result<Direction> {
         let mut leaf_node_new_children = Vec::with_capacity(self.leaf_nodes.len());
+        trace!(?self.leaf_nodes);
         // TODO: Make parallel.
         for &leaf_index in &self.leaf_nodes {
             let leaf_node = self.get_node(leaf_index);
@@ -281,12 +282,7 @@ async fn expand_leaf_node(
         .try_collect::<ArrayVec<_>>()
         .await?;
 
-    trace!(
-        your_action_and_min_rewards = ?your_action_and_children
-            .iter()
-            .map(|child: &OwnedChild| (child.your_action, child.min_reward))
-            .collect::<Vec<_>>()
-    );
+    trace!(n_your_action_and_children = your_action_and_children.len());
     Ok(your_action_and_children)
 }
 

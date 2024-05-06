@@ -12,6 +12,7 @@ const NO_TIME: Duration = Duration::from_secs(0);
 
 pub async fn respond_move(game: &Game, timeout: Duration) -> Result<MoveResponse> {
     let direction = make_move(game, timeout).await?;
+    info!(?direction);
     Ok(MoveResponse::new(direction))
 }
 

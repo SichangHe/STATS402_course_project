@@ -322,8 +322,14 @@ fn prune_node_new_children(
         .iter()
         .map(|(_, &reward)| reward)
         .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
-        .unwrap_or(f64::MIN)
-        / 2.0;
+        .map(|max_reward| {
+            if max_reward >= 0.0 {
+                max_reward / 2.0
+            } else {
+                max_reward * 2.0
+            }
+        })
+        .unwrap_or(f64::MIN);
     trace!(half_max_reward);
 
     leaf_node_new_children

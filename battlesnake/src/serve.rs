@@ -36,9 +36,9 @@ async fn handle_start(Json(game_request): Json<GameRequest>) -> StatusCode {
 
 const LATENCY_MS: u64 = 40;
 
-#[instrument]
+#[instrument(skip(game_request))]
 async fn handle_move(Json(game_request): Json<GameRequest>) -> Json<MoveResponse> {
-    info!("Move.");
+    info!(?game_request, "Move.");
     let game = Game::from_request(&game_request);
     let timeout = Duration::from_millis(game_request.game.timeout.saturating_sub(LATENCY_MS));
     let move_to_take = respond_move(&game, timeout).await.unwrap_or_else(|why| {

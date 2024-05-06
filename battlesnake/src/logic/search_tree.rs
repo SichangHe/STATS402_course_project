@@ -110,11 +110,41 @@ impl<'a> SearchTree<'a> {
                     node.parent_child_index = Some(child_index);
                 }
             }
-
-            // TODO: Back-propagate rewards.
         }
 
-        todo!()
+        self.back_propagate_rewards();
+        self.root()
+            .children
+            .iter()
+            .copied()
+            .map(|child_index| self.get_child(child_index))
+            .max_by(|child0, child1| {
+                child0
+                    .min_reward
+                    .partial_cmp(&child1.min_reward)
+                    .unwrap_or(Ordering::Equal)
+            })
+            .map(|child| child.your_action)
+            .context("Root node don't have children.")
+    }
+
+    fn back_propagate_rewards(&mut self) {
+        for raw_node_index in (0..self.nodes.len()).rev() {
+            let maybe_updated_reward = self.nodes[raw_node_index]
+                .children
+                .iter()
+                .map(|&child_index| self.get_child(child_index).min_reward)
+                .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+            if let Some(updated_reward) = maybe_updated_reward {
+                self.nodes[raw_node_index].rewards[0] = updated_reward;
+            }
+            let reward = self.nodes[raw_node_index].rewards[0];
+            let parent_child_index = self.nodes[raw_node_index].parent_child_index;
+            if let Some(parent_child_index) = parent_child_index {
+                let parent_child = self.get_child_mut(parent_child_index);
+                parent_child.min_reward = parent_child.min_reward.min(reward);
+            }
+        }
     }
 
     fn insert_node(&mut self, node: SearchTreeNode<'a>) -> SearchTreeIndex<'a> {

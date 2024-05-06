@@ -113,6 +113,11 @@ impl<'a> SearchTree<'a> {
         }
 
         self.back_propagate_rewards();
+        info!(
+            ?self.depth,
+            n_node = self.nodes.len(),
+            n_child = self.children.len(),
+        );
         self.root()
             .children
             .iter()
@@ -328,7 +333,7 @@ impl<'a> SearchTreeNode<'a> {
 }
 
 #[derive(Clone, Debug, Default)]
-struct SearchTreeChild<'a> {
+pub struct SearchTreeChild<'a> {
     pub parent_node_index: SearchTreeIndex<'a>,
     pub your_action: Direction,
     pub opponent_action_and_nodes: Vec<([Direction; 3], SearchTreeIndex<'a>)>,

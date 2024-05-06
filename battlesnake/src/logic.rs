@@ -50,15 +50,6 @@ async fn tree_searches(game: &Game, sender: mpsc::Sender<Direction>) -> Result<(
     }
 }
 
-fn snake_valid_directions<'a>(
-    game: &'a Game,
-    snake_id: &'a u8,
-) -> impl Iterator<Item = Direction> + 'a {
-    Direction::all()
-        .into_iter()
-        .filter(|dir| game.move_is_valid(*snake_id, *dir))
-}
-
 fn actions_with_replaced(
     actions: [Direction; 4],
     replace_index: usize,

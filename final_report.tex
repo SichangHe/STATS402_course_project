@@ -515,6 +515,67 @@ As an additional evaluation,
 we will deploy our agent on a standard Duke VM and join the standard
 leaderboard~\cite{standard_leaderboard} to play against other players' snakes.
 
+\subsection{Hybrid Strategy and Server Implementation}
+
+We combine our reinforcement model with Monte Carlo Tree Search,
+adjusting based on the timeout limit of the game into an asynchronous and hybrid
+strategy,
+and implemented a web server to host the agent to compete with other players on
+the Battlesnake website~\cite{battlesnake}.
+
+\subsubsection{Modified Monte Carlo Tree Search}
+Our Monte Carlo Tree Search implementation differs from the standard approach
+mainly in two aspects. First,
+our tree search iteratively and asynchronously increment search depth,
+yielding intermediate best results on each depth,
+rather than aiming at a specific depth and conduct the search until that depth
+is met.
+This strategy is motivated by the 500ms action time limit of Battlesnake.
+When the timeout is reached,
+the implementation aborts any further search and returns the best result found
+so far. Second,
+our algorithm relies on the reinforcement learning agent's policy probability
+and value prediction to decide which branches to explore.
+If we were to explore all branches at each depth,
+the number of game states grows rapidly by a factor of approximately $3^4$ for
+each depth, thus this pruning is vital to keep the search space manageable.
+Additionally, traditional Alpha-Beta pruning is not applicable in Battlesnake,
+since it is four-player simultaneous-move and minimizing one player's reward
+does not generally maximize other players'.
+
+Pruning is the key part in the algorithm.
+For each state starting from the current observation,
+we infer the policy probabilities and values for our own agent and each opponent
+on, which are then used find the most probable action combination $A^\ast$,
+and filter out any action combination $A_i$ with $P(A_i)<C_oP(A^\ast)$,
+where $C_o:=\frac{3}{4}$ is the cut-off coefficient.
+After the filtering,
+the game state $s'_j$ after taking each action combination $A_j$ is simulated,
+with the reward set to $-1$ or $1$ for terminal states,
+and inferred using the model otherwise.
+The newly simulated states $s'_i$s are further pruned by filtering out unlikely
+actions for each opponent, as defined by
+$$
+    r_{s'_j} < \begin{cases}
+        C_o\max_i r_{s'_i}           & \text{if } \max_i r_{s'_i} \ge 0 \\
+        \frac{1}{C_o}\max_i r_{s'_i} & \text{if } \max_i r_{s'_i} < 0
+    \end{cases}.
+$$
+After the above pruning,
+The minimum rewards are calculated for each action we make,
+propagating from the leaf states to the root.
+The action with the maximum minimum reward is chosen as the final action.
+
+\subsubsection{Web Server Implementation}
+The web server is implemented using the Axum web framework~\cite{axum}
+in async Rust~\cite{tokio}, and additionally implements the search algorithm.
+Battlesnake REST API request handling is delegated to the same library used for
+game simulation~\cite{wrenger2024rusty}.
+Our server subsequently calls into the model inference module in Python through
+PyO3~\cite{pyo3},
+and construct an in-memory tree structure of game states to the simulate the
+algorithm.
+
 \todo{demonstrate the corresponding experimental results}
 
 \subsection{Results}
@@ -666,7 +727,7 @@ increasing the batch size sped up the training of each $16^4$ steps from around
 The tiny ViT model is mostly able to avoid walls and themselves after only
 $134\times 16^4$ steps of training. However,
 it is still not able to consistently avoid other snake even after $182\times
-16^4$ steps of training. Additionally,
+    16^4$ steps of training. Additionally,
 the tiny ViT model has a tendency of staying closely together with other agents,
 and collide with them, as shown in Figure~\ref{fig:tiny-vit-close-render}
 
@@ -696,8 +757,44 @@ therefore the models can never win against the tree search agent in our
 observation. We suspect this is why~\cite{chung2020battlesnake}
 does not use standard agents as comparison and rather compare the models against
 themselves. For the above reason,
-we will not evaluate the models against the tree search agent,
-but rather against other models.
+we will not evaluate the models against the tree search agent.
+It would be feasible to evaluate our models against each other, however,
+we deem it counterproductive and instead focus evaluating the hybrid strategy
+using the Battlesnake leaderboard~\cite{standard_leaderboard}.
+
+\subsubsection{Hybrid Strategy Real-World Performance}
+
+We first tested our web server against default agents provided on the
+Battlesnake website,
+then joined the leaderboard and competed with other players for one day.
+
+In our initial testing using $C_o=\frac{1}{2}$,
+and without pruning the leaf states,
+the algorithm is only able to conduct a search of depth 1.
+We analyze and find that majority of time is spent on neural network inference,
+which,
+since our model inference is around 1.2ms for all four players' observations,
+limits our available state evaluation chances to around less than 90.
+After we massively reduced the search span by setting $C_o=\frac{3}{4}$ and
+adding the leaf state pruning,
+the algorithm is able to consistently search to depth 2 or 3,
+and occasionally to depth 8 when there are fewer valid states.
+We note that the Python Global Interpreter Lock and PyO3's implementation blocks
+our implementation to utilize more than one CPU cores,
+and elevating this limitation should increase its computational capacity by
+around $2\times$.
+
+Our real-world test in the Battlesnake leaderboard is successful,
+but with significance less than desired. During the one-day test,
+our agent won all 99 games except for one game where the web server web
+temporarily shut down,
+and one game where it failed to respond within 500ms potential due to unexpected
+network lag. However, all of the games are within 11 steps,
+with trivial opponents that either only go up,
+or conduct suicide\footnote{We found an agent named ``The Worst Possible Snake
+    '' that tries to collide with its own body as quickly as possible.}.
+Therefore, the results demonstrate that our methods are reliable and practical,
+but only for low-level game play.
 
 \todo{analyze the experimental data accordingly}
 

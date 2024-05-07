@@ -60,7 +60,7 @@ impl<'a> SearchTree<'a> {
                 } else {
                     Some((
                         leaf_index.index,
-                        leaf_node.action_probabilities.clone(),
+                        leaf_node.action_probabilities,
                         leaf_node.game.clone(),
                         Arc::clone(model),
                         self.depth,

@@ -1,14 +1,18 @@
 use battlesnake_gym::observations::states;
 use numpy::convert::IntoPyArray;
 use pyo3::{intern, types::IntoPyDict};
-use tokio::{sync::Mutex, task::JoinHandle};
+use tokio::{
+    sync::Mutex,
+    task::{JoinHandle, JoinSet},
+};
 use tokio_gen_server::*;
 
 use super::*;
 
 pub struct ModelActor {
-    py_model: Py<PyAny>,
-    np_rot90: Py<PyAny>,
+    py_model: Arc<Py<PyAny>>,
+    np_rot90: Arc<Py<PyAny>>,
+    join_set: JoinSet<()>,
 }
 
 impl Actor for ModelActor {
@@ -24,77 +28,85 @@ impl Actor for ModelActor {
         _env: &mut Ref<Self>,
         reply_sender: tokio::sync::oneshot::Sender<Self::Reply>,
     ) -> Result<()> {
-        let prediction = self.predict(&game);
-        _ = reply_sender.send((game, prediction));
+        // Clear join set.
+        while let Some(prev_result) = self.join_set.try_join_next() {
+            match prev_result {
+                Ok(()) => {}
+                Err(why) => error!(?why, "ModelActor join error."),
+            }
+        }
+        let np_rot90 = Arc::clone(&self.np_rot90);
+        let py_model = Arc::clone(&self.py_model);
+        self.join_set.spawn(async move {
+            let prediction = predict(&np_rot90, &py_model, &game);
+            _ = reply_sender.send((game, prediction));
+        });
 
         Ok(())
     }
 }
 
-impl ModelActor {
-    /// Predict policy probabilities and values given observations.
-    /// Invalid actions correspond to -inf logits.
-    /// Invalid game states correspond to 0 values.
-    /// Dead agents receive logits of 0 for only one of the actions.
-    #[instrument(skip(self, game))]
-    pub fn predict(&self, game: &Game) -> Result<Prediction> {
-        trace!("Predicting.");
-        let mut policy_logits = [[f64::NEG_INFINITY; 4]; 4];
-        for (player_id, policy_logit) in policy_logits.iter_mut().enumerate() {
-            if !game.snake_is_alive(player_id as u8) {
-                policy_logit[0] = 0.0;
-                continue;
-            }
+/// Predict policy probabilities and values given observations.
+/// Invalid actions correspond to -inf logits.
+/// Invalid game states correspond to 0 values.
+/// Dead agents receive logits of 0 for only one of the actions.
+#[instrument(skip(np_rot90, py_model, game))]
+pub fn predict(np_rot90: &Py<PyAny>, py_model: &Py<PyAny>, game: &Game) -> Result<Prediction> {
+    trace!("Predicting.");
+    let mut policy_logits = [[f64::NEG_INFINITY; 4]; 4];
+    for (player_id, policy_logit) in policy_logits.iter_mut().enumerate() {
+        if !game.snake_is_alive(player_id as u8) {
+            policy_logit[0] = 0.0;
+            continue;
         }
-
-        let mut values = [0.0; 4];
-        let (raw_states, snake_facings) = states(game);
-
-        Python::with_gil(|py| -> Result<_> {
-            let observations = raw_states
-                .into_iter()
-                .zip(&snake_facings)
-                .enumerate()
-                .filter(|(player_id, _)| game.snake_is_alive(*player_id as u8))
-                .map(|(_, (raw_state, &facing))| {
-                    let state = raw_state.into_pyarray_bound(py);
-                    let rot_kwargs = [(intern!(py, "k"), facing)].into_py_dict_bound(py);
-                    rot_kwargs.set_item(intern!(py, "axes"), (1, 2))?;
-                    let state = self.np_rot90.call_bound(py, (state,), Some(&rot_kwargs))?;
-                    Ok(state)
-                })
-                .collect::<Result<Vec<_>>>()?;
-            let (raw_policy_logits, raw_values): (Vec<[f64; 3]>, Vec<f64>) = self
-                .py_model
-                .call_method1(py, intern!(py, "policy_logits_and_values"), (observations,))?
-                .extract(py)?;
-            (0..4)
-                .filter(|player_id| game.snake_is_alive(*player_id as u8))
-                .zip(raw_policy_logits)
-                .zip(raw_values)
-                .zip(&snake_facings)
-                .for_each(|(((player_id, policy_logit), value), &snake_facing)| {
-                    (-1..2)
-                        .zip(policy_logit)
-                        .for_each(|(relative_move, logit)| {
-                            let true_move = (relative_move + snake_facing).rem_euclid(4);
-                            let action = snake_true_move2direction(true_move);
-                            if game.move_is_valid(player_id as u8, action) {
-                                policy_logits[player_id][true_move as usize] = logit;
-                            }
-                        });
-                    values[player_id] = value;
-                });
-
-            Ok(())
-        })?;
-
-        trace!("Predicted.");
-        Ok(Prediction {
-            policy_logits,
-            values,
-        })
     }
+
+    let mut values = [0.0; 4];
+    let (raw_states, snake_facings) = states(game);
+
+    Python::with_gil(|py| -> Result<_> {
+        let observations = raw_states
+            .into_iter()
+            .zip(&snake_facings)
+            .enumerate()
+            .filter(|(player_id, _)| game.snake_is_alive(*player_id as u8))
+            .map(|(_, (raw_state, &facing))| {
+                let state = raw_state.into_pyarray_bound(py);
+                let rot_kwargs = [(intern!(py, "k"), facing)].into_py_dict_bound(py);
+                rot_kwargs.set_item(intern!(py, "axes"), (1, 2))?;
+                let state = np_rot90.call_bound(py, (state,), Some(&rot_kwargs))?;
+                Ok(state)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let (raw_policy_logits, raw_values): (Vec<[f64; 3]>, Vec<f64>) = py_model
+            .call_method1(py, intern!(py, "policy_logits_and_values"), (observations,))?
+            .extract(py)?;
+        (0..4)
+            .filter(|player_id| game.snake_is_alive(*player_id as u8))
+            .zip(raw_policy_logits)
+            .zip(raw_values)
+            .zip(&snake_facings)
+            .for_each(|(((player_id, policy_logit), value), &snake_facing)| {
+                (-1..2)
+                    .zip(policy_logit)
+                    .for_each(|(relative_move, logit)| {
+                        let true_move = (relative_move + snake_facing).rem_euclid(4);
+                        let action = snake_true_move2direction(true_move);
+                        if game.move_is_valid(player_id as u8, action) {
+                            policy_logits[player_id][true_move as usize] = logit;
+                        }
+                    });
+                values[player_id] = value;
+            });
+
+        Ok(())
+    })?;
+
+    trace!("Predicted.");
+    Ok(Prediction {
+        policy_logits,
+        values,
+    })
 }
 
 pub struct Model {
@@ -127,8 +139,9 @@ impl Model {
             info!(?trial_index);
 
             Ok(ModelActor {
-                py_model: model.unbind(),
-                np_rot90: rot90.unbind(),
+                py_model: Arc::new(model.unbind()),
+                np_rot90: Arc::new(rot90.unbind()),
+                join_set: Default::default(),
             })
         })?;
 

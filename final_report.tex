@@ -10,8 +10,8 @@
 \usepackage{xcolor}
     \newcommand{\todo}[1]{\textcolor{red}{[ #1 ]}}
     \newcommand{\instruction}[1]{\textcolor{orange}{#1}}
-% \renewcommand{\todo}[1]{} % Uncomment to hide todos.
-% \renewcommand{\instruction}[1]{} % Uncomment to hide instructions.
+\renewcommand{\todo}[1]{} % Uncomment to hide todos.
+\renewcommand{\instruction}[1]{} % Uncomment to hide instructions.
 
 \newcommand{\hidden}[1]{}
 
@@ -27,23 +27,47 @@
 \begin{document}
 \maketitle
 
+\instruction{Insert a very brief paragraph describing your project (300 words)}
+
+\todo{the actual problem you are considering and the motivation behind your method;}
+
+\todo{brief description of the method you designed;}
+
+\todo{brief description of how you validated the method you proposed.}
+
 \begin{abstract}
-    \instruction{Insert a very brief paragraph describing your project (300 words)}
-
-    \todo{the actual problem you are considering and the motivation behind your method;}
-
-    \todo{brief description of the method you designed;}
-
-    \todo{brief description of how you validated the method you proposed.}
+    We develop a purely deep-reinforcement-learning-based agent to play the game
+    of Battlesnake,
+    a popular simultaneous multiplayer online programming competition with time
+    limits, similar to the arcade snake game.
+    Our agents learn purely from environment simulation and self play,
+    utilizing modified Proximal Policy Optimization and various neural network
+    designs including Vision Transformers. Additionally,
+    they are designed to operate in resource-constrained environments akin to
+    those used by amateur Battlesnake players,
+    from which we find inference speed very fast even for larger models.
+    Initial results are promising in supporting the feasibility of Battlesnake
+    agents purely trained with deep reinforcement learning and self play.
+    However, the training process is the major challenge,
+    and our agents are not on par with tree search agents. Consequently,
+    we propose a hybrid strategy to combine our model with tree search,
+    and demonstrated success by deploying our agents to compete on the
+    Battlesnake standard leaderboard.
+    Our implementation is open-source at
+    \url{https://github.com/SichangHe/battlesnake_drl_course_project},
+    and contributes to the Battlesnake community by encouraging more exploration
+    in deep reinforcement learning.
 \end{abstract}
 
-\section{Introduction}
+\section{Introduction and Related Work}
 
 \todo{briefly introduce the background knowledge of the actual problem
     you want to solve and the motivation behind your design
 }
 
-\todo{briefly introduce the characteristics of your method}
+\todo{analyze and summarize the existing methods in the field related to the
+    problem you are considering
+}
 
 Battlesnake~\cite{battlesnake}
 is a popular online programming competition in the form of a simultaneous
@@ -64,16 +88,15 @@ as long as they can finish the response within the time limitation (500ms).
 \begin{figure}
     \centering
     \includegraphics[width=\linewidth]{snake_game_screenshot.png}
-    \caption{A Standard Battlesnake Game with 4 Snakes on A 11x11 Board.
+    \caption{A standard Battlesnake game with 4 snakes on an 11 by 11 board.
         The transparent snake is already dead.
     }
     \label{fig:game}
 \end{figure}
 
-Battlesnake is an ideal target for implementing deep reinforcement learning.
 Traditionally,
-the leader board is occupied by players employing various heuristics and Monte
-Carlo tree search algorithms,
+top Battlesnake players employing various heuristics and tree search
+algorithms,
 most notably minimax~\cite{hill2018building,binnersley2020battlesnake}. However,
 more recently,
 even well-defined heuristics and tree search algorithms are only adequate for
@@ -83,7 +106,10 @@ a game with $n$ snakes),
 tree search algorithms are computationally demanding even when techniques like
 alpha-beta pruning are employed. This cost problem is magnified,
 especially considering the game sets a 500ms action time limit.
-To address these problems, we compare Battlesnake to the game of Go,
+
+To address these problems,
+we consider Battlesnake as an ideal target for implementing deep reinforcement
+learning. We compare Battlesnake to the game of Go,
 which also has a large possibility space and potentially long time horizon,
 and AlphaGo has demonstrated that deep reinforcement learning can excel in such
 situations and achieve superhuman-level performance~\cite{silver2016mastering}.
@@ -92,18 +118,34 @@ include OpenAI Five defeating human world champions in Dota 2,
 a much more complicated online multiplayer battle game~\cite{berner2019dota}.
 Therefore,
 it is sensible that deep reinforcement learning can possibly be employed to
-build state-of-the-art Battlesnake agents.
+build state-of-the-art Battlesnake agents. Additionally,
+As shown by AlphaZero~\cite{silver2017mastering},
+a deep reinforcement learning agent can learn,
+with no other knowledge about the game than only a simulation environment,
+enough knowledge to achieve superhuman performance in many board games. However,
+prior Battlesnake implementations utilizing reinforcement learning often also
+incorporate heuristics and tree search,
+instead of relying purely on reinforcement learning
+algorithms~\cite{chung2020battlesnake,binnersley2020battlesnake}. Hence,
+we are interested to learn whether purely-deep-reinforcement-learning-based
+agents can perform well in Battlesnake.
 
 A deeper aspect to explore is developing deep reinforcement learning agents to
 operate in resource-constrained environments.
-Most Battlesnake players are amateurs hosting their web servers on cheap VMs on
-cloud platforms or Raspberry Pi computers~\cite{standard_leaderboard}.
-Similar to these resource-constrained environments, use cases,
-such as autonomous spacecraft control,
+Most Battlesnake players are amateurs hosting their web servers on cheap Virtual
+Machines (VMs)
+on cloud platforms or Raspberry Pi computers~\cite{standard_leaderboard}.
+In contrast,
+AlphaZero was built with a massive neural network and trained using 4000 TPUs,
+a condition unthinkable for the ordinary Battlesnake players. However,
+similar to these resource-constrained environments Battlesnake players deploy
+on, use cases, such as autonomous spacecraft control,
 have seen deep reinforcement learning applied in
 them~\cite{harris2022generation}. More closely related,
-proximal policy optimization (PPO)~\cite{schulman2017proximal},
-the same deep reinforcement learning technique employed by OpenAI Five,
+Proximal Policy Optimization~\cite{schulman2017proximal},
+a flexible reinforcement learning algorithm empirically high-performing in
+adversarial
+games~\cite{berner2019dota,binnersley2020battlesnake,chung2020battlesnake},
 has been successfully deployed in compute and memory-limited robotic control,
 specifically quadrotor navigation~\cite{huang2023collision,hegde2023hyperppo}.
 Thus,
@@ -113,46 +155,39 @@ should be feasible;
 such solutions would also demonstrate more fairness and practical contributions
 among the competition.
 
-\todo{present the organization of the subsequent part of the article}
-
-\section{Related Work}
-
-\todo{analyze and summarize the existing methods in the field related to the
-    problem you are considering
-}
-
 \todo{explain the advantages and disadvantages of the existing methods}
-
-As shown by AlphaZero~\cite{silver2017mastering},
-a deep reinforcement learning agent can learn,
-with no other knowledge about the game than only a simulation environment,
-is already enough to achieve superhuman performance in many board games.
-However,
-AlphaZero was built with a massive neural network and trained using 4000 TPUs,
-a condition unthinkable for the ordinary Battlesnake players. Meanwhile,
-prior Battlesnake implementations utilizing reinforcement learning often also
-incorporate heuristics and tree search,
-instead of relying purely on reinforcement learning
-algorithms~\cite{chung2020battlesnake,binnersley2020battlesnake}.
-
-We choose Proximal Policy Optimization because of its flexibility and high empirical performance in
-adversarial games,
-as observed
-in~\cite{berner2019dota,binnersley2020battlesnake,chung2020battlesnake}.
 
 \todo{explain the differences and characteristics of your approach relative to
     the existing methods
 }
 
-we are interested to learn how well such purely
-deep-reinforcement-learning-based agents can perform.
-
-AlphaGo is an early success example that combines Reinforcement Learning with Monte Carlo Tree Search.
-However, the game of Go is a two-player turn-based asynchronous-move game,
+In case that our purely-deep-reinforcement-learning-based agents do not perform
+well enough,
+we provide a fallback to combine the model with tree search into a hybrid
+strategy. This approach is similar to that in AlphaGo,
+an early success example that combines Reinforcement Learning with Monte Carlo
+Tree Search. However,
+the game of Go is a two-player turn-based asynchronous-move game,
 so AlphaGo's strategy does not generally apply in Battlesnake,
 which is multi-player simultaneous-move.
+We instead adjust the strategy to exploit the policy probabilities and value
+predictions of our reinforcement learning model.
 
-\section{The Proposed Method}
+\todo{briefly introduce the characteristics of your method}
+
+In the following sections,
+we describe our proposed method in further detail~(Section~\ref{sec:method}),
+then implement our method and evaluate its performance~(Section~\ref{sec:eval}).
+We focus on the implementation of the simulation environment in
+Section~\ref{sec:sim-env},
+our various neural network designs in Section~\ref{sec:net-design},
+and findings based on manual inspection in Section~\ref{sec:manual-inspection}.
+We evaluate the performance of our models under resource constraints in a real-word scenario in Section~\ref{sec:real-world},
+and conclude with future work in Section~\ref{sec:conclusion}.
+
+\todo{present the organization of the subsequent part of the article}
+
+\section{The Proposed Method}\label{sec:method}
 
 \instruction{In this part, you need to describe your method in detail.
     According to the specific problems considered in the article and the
@@ -180,7 +215,7 @@ and the board is rotated so its faces up. Therefore,
 only three valid actions ``up'', ``left'',
 and ``right'' are possible for each agent at any time.
 Opponents' health is ignored because starvation hardly happens in high-level
-game play~\cite{siddiqui2020multiagent}.
+gameplay~\cite{siddiqui2020multiagent}.
 We will have 9 layers of 21 by 21 matrices ($\mathbb R^{9\times21\times21}$),
 with each entry normalized to be within $(-1,1)$, and 0 indicating emptiness:
 \begin{itemize}
@@ -233,7 +268,7 @@ simulations.
 \subsection{Hybrid Strategy}
 
 In case the purely-reinforcement-learning-based agent is not able to perform
-well in high-level game play,
+well in high-level gameplay,
 we propose to combine the model with tree search into an
 asynchronous and progressive strategy.
 This hybrid strategy differs from the standard approach mainly in two aspects.
@@ -277,7 +312,7 @@ The minimum rewards are calculated for each action we make,
 propagating from the leaf states to the root.
 The action with the maximum minimum reward is chosen as the final action.
 
-\section{Performance Evaluation}
+\section{Performance Evaluation}\label{sec:eval}
 
 \todo{introduce your method of verifying the validity/correctness of your method}
 
@@ -306,11 +341,11 @@ Raspberry Pis, which other Battlesnake players typically deploy their agents on.
 
 We implement a simulation environment compatible with the Pettingzoo
 API~\cite{terry2021pettingzoo},
-conduct reinforcement learning training with PPO using Stable
-Baselines3~\cite{raffin2024stable},
+conduct reinforcement learning training with Proximal Policy Optimization using
+Stable Baselines3~\cite{raffin2024stable},
 and construct a web server to participant in Battlesnake games.
 
-\subsubsection{Simulation Environment}
+\subsubsection{Simulation Environment}\label{sec:sim-env}
 
 We developed the \textsf{BattlesnakeEnv} environment to simulate game states in Rust, leveraging the engine in~\cite{wrenger2024rusty},
 and extracts the $9\times 21\times 21$ observation features for each player.
@@ -359,11 +394,7 @@ We then calculate the full feature matrix for each snake's observation without
 the rotation, and the facing of each snake. Finally,
 these two values are sent to Python,
 where we conveniently construct the final feature matrix by rotating the feature
-matrix in Numpy according to the snake's facing. In this process,
-a large number of indexing is used to construct the feature matrix,
-causing difficulties to debug. Though,
-we tested the implementation by inspecting the intermediate values,
-confirming its correctness.
+matrix in Numpy according to the snake's facing.
 
 Besides feature extraction,
 the Rust implementation also converts relative actions input from the Python
@@ -384,7 +415,7 @@ and the facing can be directly used for the rotation in Numpy mentioned above.
 
 Although we leverage the Stable Baselines3 implementation of Proximal Policy
 Optimization to do most of the heavy lifting,
-we also directly customized its main training loop to simplify the logic
+we also directly customized its main training loop to simplify the logic and
 apply our customizations.
 
 As previously stated, the \textsf{BattlesnakeEnv} environment is wrapped using
@@ -403,8 +434,9 @@ Since dead agents' actions are counted into the number of steps the model has
 trained, it is unclear how many steps the model has actually trained.
 Additionally, it is unclear how the padding affects the training.
 
-We modified and overrode the training methods on Stable Baselines3's PPO
-implementation. Our implementation tracks each agent's statistics separately,
+We modified and overrode the training methods on Stable Baselines3's Proximal
+Policy Optimization implementation to replace the SuperSuit wrapper.
+Our implementation tracks each agent's statistics separately,
 and only pushes them to calculate the returns and advantages when the agent
 dies. We also correctly count the number of steps the model has trained,
 by summing the number of steps each alive agent moves.
@@ -418,15 +450,14 @@ Additionally, with our custom training loop,
 we are able to train the agent against older versions of itself for 20\% of the
 time, as described in the proposed method.
 
-\subsubsection{Neural Network Designs}
+\subsubsection{Neural Network Designs}\label{sec:net-design}
 
 Using our simulation environment and the custom Proximal Policy Optimization implementation,
 we developed various neural networks for the policy and value networks.
 Our original plan is to first experiment with basic multilayer perceptron (MLP)
 models using the CPU to validate our overall approach,
 then gradually increase model complexity in the hope of fitting the computation
-budget
---440ms of inference time on a standard Duke VM.
+budget.
 We choose 440ms of inference time on a standard Duke VM as our target computation budget, because the average ping from the VM to the
 Battlesnake website is around 20ms,
 and we reserve three times that amount for network out of the 500ms allocated
@@ -481,7 +512,7 @@ with hidden layer width 512 and 256.
 
 \paragraph{Vision Transformer (ViT) Models}
 Since the ViT model has shown great success in image classification tasks as an
-alternative to CNN models,
+alternative to Convolutional Neural Network models~\cite{dosovitskiy2020image},
 we constructed small, big, and tiny ViT models for feature extraction.
 Our small ViT model has patch size 7, 4 encoder layers, 4 heads, hidden size 256,
 and MLP size 512.
@@ -491,7 +522,7 @@ because our feature matrices have 9 channels instead of the 3 used in image
 classification.
 Our big ViT model has patch size 3, 8 encoder layers, 8 heads, hidden size 512,
 and MLP size 1024.
-Our tiny ViT model has patch size 7, 2 encoder layers, 1 heads, hidden size 64,
+Our tiny ViT model has patch size 7, 2 encoder layers, 1 head, hidden size 64,
 and MLP size 128.
 
 \subsection{Training Setup Modifications}\label{sec:training-mod}
@@ -565,8 +596,8 @@ algorithm.
 \subsubsection{Performance under Resource Constraints}
 
 Although we worried about the size of the model impacting the inference speed,
-inference only took less than 1.0 millisecond and 600\,MiB of RAM on the default
-Duke VM. Therefore,
+inference only took less than 1.0 millisecond and 600\,MiB of RAM (for the big
+ViT) on the default Duke VM. Therefore,
 we believe inference speed is not a bottleneck even on compute-constrained
 environments,
 but the size of the model will become a bottleneck when RAM is limited.
@@ -574,7 +605,7 @@ As a conclusion,
 larger and more resource-intensive models like transformer are likely feasible,
 with the training process being the major bottleneck.
 
-\subsubsection{Manual Inspection}
+\subsubsection{Manual Inspection}\label{sec:manual-inspection}
 
 We implemented the \textsf{render}
 method on the environment to visualize the game.
@@ -592,6 +623,16 @@ the MLP has two hidden layers of size 64 with ReLU activation.
 Training the model on an M1 MacBook for 1,000,000 steps took 8 minutes 37
 seconds, while leveraging most of the CPU cores.
 
+\begin{figure}
+    \centering
+    \includegraphics[width=\linewidth]{game_render_eg2.png}\\[12pt]
+    \includegraphics[width=\linewidth]{game_render_eg3.png}
+    \caption{ANSI rendering of the game simulation after removing return values
+        for dead agents. The lower figure is one step after the upper figure.
+    }
+    \label{fig:render2}
+\end{figure}
+
 After removing entirely the rewards and other parameters for the dead agents,
 the results are much more reasonable. Based on manual inspection,
 the agents are now able to avoid walls,
@@ -603,16 +644,6 @@ which is likely due to the lack of direct rewards for eating food. Overall,
 the fact that the agents are able to avoid walls is promising,
 indicating that they should be able to learn more complex strategies with a more
 sophisticated model.
-
-\begin{figure}
-    \centering
-    \includegraphics[width=\linewidth]{game_render_eg2.png}\\[12pt]
-    \includegraphics[width=\linewidth]{game_render_eg3.png}
-    \caption{ANSI rendering of the game simulation after removing return values
-        for dead agents. The lower figure is one step after the upper figure.
-    }
-    \label{fig:render2}
-\end{figure}
 
 We also inspected the behavior of a model trained for 100,000 steps.
 This model does not yet seem to be able to avoid colliding with walls.
@@ -636,7 +667,8 @@ matrices. Alternatively,
 another great possibility is the model requires much more training steps due to
 its significantly larger size. Though,
 we gave up on further training the VGG-like model because of the known
-limitations of CNNs that they require a large amount of data to train.
+limitations of Convolutional Neural Networks that they require a large amount of
+data to train.
 
 \paragraph{Impact of Entropy Bonus on Model Performance}
 If trained without any entropy bonus,
@@ -745,7 +777,7 @@ It would be feasible to evaluate our models against each other, however,
 we deem it counterproductive and instead focused our effort in evaluating the
 hybrid strategy using the Battlesnake leaderboard~\cite{standard_leaderboard}.
 
-\subsubsection{Hybrid Strategy Real-World Performance}
+\subsubsection{Hybrid Strategy Real-World Performance}\label{sec:real-world}
 
 We first tested our web server against default agents provided on the
 Battlesnake website,
@@ -778,17 +810,21 @@ or conduct suicide\footnote{We found an agent named ``The Worst Possible Snake
     '' that tries to collide with walls or its own body as quickly as
     possible.}.
 Therefore, the results demonstrate that our methods are reliable and practical,
-but only for low-level game play.
+but only for low-level gameplay.
 
 \todo{analyze the experimental data accordingly}
 
-\section{Conclusion and Future Work}
+\section{Conclusion and Future Work}\label{sec:conclusion}
 
-We developed purely deep-reinforcement-learning-based Battlesnake
-agent capable of operating in resource-constrained environments like low-tier
-cloud VMs.
-Trained with custom simulation environment and modified Proximal Policy Optimization implementation,
-our agents learned to avoid walls and themselves.
+We developed purely deep-reinforcement-learning-based Battlesnake agent
+targeting resource-constrained environments.
+Our evaluation shows that the training process, rather than inference speed,
+is the bottleneck,
+and purely-reinforcement-learning-based agents are mostly only limited by RAM in
+resource-constrained environments.
+Trained with custom simulation environment and modified Proximal Policy
+Optimization implementation, our agents learned to avoid walls and themselves,
+showing the potential to master the game of Battlesnake purely by self play.
 We combine the agents with tree search into a hybrid strategy,
 and succeeded in competing on the standard Battlesnake leaderboard.
 Despite the success on a basic level,
@@ -798,7 +834,7 @@ and our agents are not yet able to consistently avoid other snakes.
 We believe our basic methods of training reinforcement learning agents with only
 knowledge provided by the simulation environment are sound,
 and further training and tuning will improve the agents' performance to meet
-high-level game play.
+high-level gameplay.
 
 \printbibliography
 

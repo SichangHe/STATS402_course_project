@@ -6,6 +6,7 @@ use battlesnake_gym::{
 };
 use futures::prelude::*;
 use itertools::Itertools;
+use par_stream::prelude::*;
 use pyo3::prelude::*;
 use serde::Serialize;
 use shame::*;

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use futures::TryStreamExt;
+
 use super::*;
 
 #[derive(Clone, Debug)]
@@ -46,18 +48,45 @@ impl<'a> SearchTree<'a> {
     }
 
     /// Returns if there are more layers.
-    pub async fn compute_next_layer(&mut self, model: &Model) -> Result<bool> {
-        let mut leaf_node_new_children = Vec::with_capacity(self.leaf_nodes.len());
+    pub async fn compute_next_layer(&mut self, model: &Arc<Model>) -> Result<bool> {
         trace!(?self.leaf_nodes);
-        // TODO: Make parallel.
-        for &leaf_index in &self.leaf_nodes {
-            let leaf_node = self.get_node(leaf_index);
-            if leaf_node.rewards[0] == WIN_REWARD || leaf_node.rewards[0] == LOSE_REWARD {
-                continue; // Terminal nodes do not have children.
-            }
-            let children = expand_leaf_node(leaf_node, model, self.depth).await?;
-            leaf_node_new_children.push((leaf_index, children));
-        }
+        let expansion_args = self
+            .leaf_nodes
+            .iter()
+            .filter_map(|&leaf_index| {
+                let leaf_node = self.get_node(leaf_index);
+                if leaf_node.rewards[0] == WIN_REWARD || leaf_node.rewards[0] == LOSE_REWARD {
+                    None // Terminal nodes do not have children.
+                } else {
+                    Some((
+                        leaf_index.index,
+                        leaf_node.action_probabilities.clone(),
+                        leaf_node.game.clone(),
+                        Arc::clone(model),
+                        self.depth,
+                    ))
+                }
+            })
+            .collect::<Vec<_>>();
+        let mut leaf_node_new_children = stream::iter(expansion_args)
+            .par_then(
+                None,
+                |(leaf_index, action_probs, game, model, depth)| async move {
+                    expand_leaf_node(action_probs, &game, &model, depth)
+                        .await
+                        .map(|children| {
+                            (
+                                SearchTreeIndex {
+                                    index: leaf_index,
+                                    _phantom: Default::default(),
+                                },
+                                children,
+                            )
+                        })
+                },
+            )
+            .try_collect::<Vec<_>>()
+            .await?;
         trace!(leaf_node_new_children_len_before_pruning = leaf_node_new_children.len());
         prune_node_new_children(&mut leaf_node_new_children, self.leaf_nodes.len());
         let leaf_node_new_children = leaf_node_new_children;
@@ -265,11 +294,11 @@ const DIRECTIONS: [Direction; 4] = [
 ];
 
 async fn expand_leaf_node(
-    leaf_node: &SearchTreeNode<'_>,
+    action_probs: [[f64; 4]; 4],
+    game: &Game,
     model: &Model,
     depth: usize,
 ) -> Result<ArrayVec<[OwnedChild; 3]>> {
-    let action_probs = &leaf_node.action_probabilities;
     let mut three_quaters_max_action_prob = 0.75;
     for action_prob in action_probs {
         let max_prob = action_prob
@@ -304,7 +333,7 @@ async fn expand_leaf_node(
                     if prob0 * prob1 * prob2 * prob3 < three_quaters_max_action_prob {
                         continue;
                     }
-                    let mut game = leaf_node.game.clone();
+                    let mut game = game.clone();
                     game.step(&[d0, d1, d2, d3]);
 
                     let node = match game.outcome() {

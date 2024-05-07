@@ -1,5 +1,20 @@
 # Battlesnake Server
 
+Running this server depends on `../battlesnake_train/`. Go there, set up the environment, activate the virtual environment, and come back.
+
+Run this server on port 3000:
+
+```sh
+cargo r --release -- 3000
+```
+
+If it does not compile, try something like:
+
+```sh
+export LD_LIBRARY_PATH="$HOME/.rye/py/cpython@3.11.8/lib:$LD_LIBRARY_PATH"
+export RUSTFLAGS="-L $HOME/.rye/py/cpython@3.11.8/lib"
+```
+
 Test server:
 
 ```sh

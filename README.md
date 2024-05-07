@@ -1,23 +1,5 @@
 # Battlesnake Deep Reinforcement Learning (Course Project)
 
-Benchmark: minimax method.
+Reinforcement Learning implementation is in `battlesnake_train/`, and the Battlesnake server is in `battlesnake/`. See their respective READMEs for more information.
 
-Experiment: DQN.
-
-Potential targets:
-
-- Survive alone for as long as possible.
-    - Calculate future moves 🌳.
-    - Chase the tail 🧩.
-- Grow as fast as possible.
-    - A* 🧩.
-- Win over other snakes.
-    - Minimax 🌳.
-    - DQN? 🙇.
-    - PPO? 🙇.
-
-Strategy categories:
-
-- Heuristics (rule-based) 🧩.
-- Tree search 🌳.
-- Machine learning 🙇.
+`snork/` contains the game logic and request handling.

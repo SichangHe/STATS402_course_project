@@ -26,8 +26,9 @@ async fn make_move(game: &Game, timeout: Duration, model: Arc<Model>) -> Result<
     info!(?game);
 
     let mut direction = None;
+    let mut depth = 0;
     scope(|scope| {
-        let searches = tree_searches(game.clone(), &mut direction, model);
+        let searches = tree_searches(game.clone(), &mut direction, &mut depth, model);
         let searches = time::timeout(timeout, searches);
         let searches = async move {
             match searches.await {
@@ -39,7 +40,7 @@ async fn make_move(game: &Game, timeout: Duration, model: Arc<Model>) -> Result<
     });
 
     let direction = direction.context("Tree search did not return a direction")?;
-    info!(?direction);
+    info!(?direction, ?depth);
     Ok(direction)
 }
 
@@ -49,6 +50,7 @@ const TOO_MANY_NODES: usize = 0x8_000;
 async fn tree_searches(
     game: Game,
     direction: &mut Option<Direction>,
+    depth: &mut usize,
     model: Arc<Model>,
 ) -> Result<()> {
     let mut search_tree = SearchTree::try_new(game, &model).await?;
@@ -64,7 +66,8 @@ async fn tree_searches(
         let more_layers_exist = search_tree.compute_next_layer(&model).await?;
         if let Some(new_direction) = search_tree.best_direction() {
             *direction = Some(new_direction);
-            debug!(?new_direction, "Updated");
+            *depth = search_tree.depth;
+            debug!(?new_direction, search_tree.depth, "Updated");
         }
         if !more_layers_exist {
             info!("Search complete");

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Mutex};
 
 use futures::TryStreamExt;
 
@@ -309,48 +309,64 @@ async fn expand_leaf_node(
         three_quaters_max_action_prob *= max_prob;
     }
 
-    // TODO: Make parallel.
-    // TODO: Alpha-Beta pruning (referencing `prune_leaf_nodes`).
     let mut your_action_and_children = ArrayVec::<[OwnedChild; 3]>::default();
     for (d0, &prob0) in DIRECTIONS.into_iter().zip(&action_probs[0]) {
         if prob0 <= 0.0 {
             continue;
         }
-        let mut opponent_action_and_nodes = Vec::with_capacity(27);
+        let opponent_action_and_nodes = Mutex::new(Vec::with_capacity(27));
         let mut min_reward = f64::MAX;
         let mut max_rewards = [f64::MIN; 4];
-        for (d1, &prob1) in DIRECTIONS.into_iter().zip(&action_probs[1]) {
-            if prob1 <= 0.0 {
-                continue;
-            }
-            for (d2, &prob2) in DIRECTIONS.into_iter().zip(&action_probs[2]) {
-                if prob2 <= 0.0 {
+        let err = Mutex::new(None);
+
+        scope(|scope| {
+            for (d1, &prob1) in DIRECTIONS.into_iter().zip(&action_probs[1]) {
+                if prob1 <= 0.0 {
                     continue;
                 }
-                for (d3, &prob3) in DIRECTIONS.into_iter().zip(&action_probs[3]) {
-                    if prob3 <= 0.0 {
+                for (d2, &prob2) in DIRECTIONS.into_iter().zip(&action_probs[2]) {
+                    if prob2 <= 0.0 {
                         continue;
                     }
-                    if prob0 * prob1 * prob2 * prob3 < three_quaters_max_action_prob {
-                        continue;
-                    }
-                    let mut game = game.clone();
-                    game.step(&[d0, d1, d2, d3]);
-
-                    let node = match game.outcome() {
-                        Outcome::None => make_node(None, game, model, depth).await?,
-                        Outcome::Winner(winner) => {
-                            SearchTreeNode::terminal(None, game, depth, Some(winner))
+                    for (d3, &prob3) in DIRECTIONS.into_iter().zip(&action_probs[3]) {
+                        if prob3 <= 0.0 {
+                            continue;
                         }
-                        Outcome::Match => SearchTreeNode::terminal(None, game, depth, None),
-                    };
-
-                    min_reward = min_reward.min(node.rewards[0]);
-                    for (player_id, &reward) in node.rewards.iter().enumerate() {
-                        max_rewards[player_id] = max_rewards[player_id].max(reward);
+                        if prob0 * prob1 * prob2 * prob3 < three_quaters_max_action_prob {
+                            continue;
+                        }
+                        let opponent_action_and_nodes = &opponent_action_and_nodes;
+                        let err = &err;
+                        scope.spawn(async move {
+                            let mut game = game.clone();
+                            game.step(&[d0, d1, d2, d3]);
+                            let maybe_node = match game.outcome() {
+                                Outcome::None => make_node(None, game, model, depth).await,
+                                Outcome::Winner(winner) => {
+                                    Ok(SearchTreeNode::terminal(None, game, depth, Some(winner)))
+                                }
+                                Outcome::Match => {
+                                    Ok(SearchTreeNode::terminal(None, game, depth, None))
+                                }
+                            };
+                            match maybe_node {
+                                Ok(node) => opponent_action_and_nodes
+                                    .lock()
+                                    .unwrap()
+                                    .push(([d1, d2, d3], node)),
+                                Err(why) => _ = err.lock().unwrap().replace(why),
+                            }
+                        });
                     }
-                    opponent_action_and_nodes.push(([d1, d2, d3], node));
                 }
+            }
+        });
+
+        let mut opponent_action_and_nodes = opponent_action_and_nodes.into_inner()?;
+        for (_, node) in &opponent_action_and_nodes {
+            min_reward = min_reward.min(node.rewards[0]);
+            for (player_id, &reward) in node.rewards.iter().enumerate() {
+                max_rewards[player_id] = max_rewards[player_id].max(reward);
             }
         }
 

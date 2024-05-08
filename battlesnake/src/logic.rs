@@ -24,17 +24,14 @@ async fn make_move(game: &Game, timeout: Duration, model: Arc<Model>) -> Result<
 
     let mut direction = None;
     let mut depth = 0;
-    scope(|scope| {
+    let ((), mut timeout_result) = TokioScope::scope_and_block(|scope| {
         let searches = tree_searches(game.clone(), &mut direction, &mut depth, model);
         let searches = time::timeout(timeout, searches);
-        let searches = async move {
-            match searches.await {
-                Ok(Err(why)) => error!(?why, "tree_searches"),
-                Ok(Ok(())) | Err(_) => {}
-            }
-        };
         scope.spawn(searches);
     });
+    if let Ok(Err(why)) = timeout_result.pop().expect("We spawned once.")? {
+        error!(?why);
+    }
 
     let direction = direction.context("Tree search did not return a direction")?;
     info!(?direction, ?depth);

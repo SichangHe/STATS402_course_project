@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Mutex};
+use std::collections::HashMap;
 
 use futures::TryStreamExt;
 
@@ -314,12 +314,10 @@ async fn expand_leaf_node(
         if prob0 <= 0.0 {
             continue;
         }
-        let opponent_action_and_nodes = Mutex::new(Vec::with_capacity(27));
         let mut min_reward = f64::MAX;
         let mut max_rewards = [f64::MIN; 4];
-        let err = Mutex::new(None);
 
-        scope(|scope| {
+        let ((), maybe_opponent_action_and_nodes) = TokioScope::scope_and_block(|scope| {
             for (d1, &prob1) in DIRECTIONS.into_iter().zip(&action_probs[1]) {
                 if prob1 <= 0.0 {
                     continue;
@@ -335,12 +333,10 @@ async fn expand_leaf_node(
                         if prob0 * prob1 * prob2 * prob3 < three_quaters_max_action_prob {
                             continue;
                         }
-                        let opponent_action_and_nodes = &opponent_action_and_nodes;
-                        let err = &err;
                         scope.spawn(async move {
                             let mut game = game.clone();
                             game.step(&[d0, d1, d2, d3]);
-                            let maybe_node = match game.outcome() {
+                            match game.outcome() {
                                 Outcome::None => make_node(None, game, model, depth).await,
                                 Outcome::Winner(winner) => {
                                     Ok(SearchTreeNode::terminal(None, game, depth, Some(winner)))
@@ -348,21 +344,18 @@ async fn expand_leaf_node(
                                 Outcome::Match => {
                                     Ok(SearchTreeNode::terminal(None, game, depth, None))
                                 }
-                            };
-                            match maybe_node {
-                                Ok(node) => opponent_action_and_nodes
-                                    .lock()
-                                    .unwrap()
-                                    .push(([d1, d2, d3], node)),
-                                Err(why) => _ = err.lock().unwrap().replace(why),
                             }
+                            .map(|node| ([d1, d2, d3], node))
                         });
                     }
                 }
             }
         });
 
-        let mut opponent_action_and_nodes = opponent_action_and_nodes.into_inner()?;
+        let mut opponent_action_and_nodes = maybe_opponent_action_and_nodes
+            .into_iter()
+            .map(|result| result?)
+            .collect::<Result<Vec<_>>>()?;
         for (_, node) in &opponent_action_and_nodes {
             min_reward = min_reward.min(node.rewards[0]);
             for (player_id, &reward) in node.rewards.iter().enumerate() {

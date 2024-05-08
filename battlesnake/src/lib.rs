@@ -1,6 +1,7 @@
 use std::{cmp::Ordering, f64::consts::LN_2, marker::PhantomData, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result};
+use async_scoped::TokioScope;
 use battlesnake_gym::{
     direction2snake_true_move, snake_true_move2direction, LOSE_REWARD, UP, WIN_REWARD,
 };
@@ -16,7 +17,6 @@ use snork_engine::{
 };
 use tinyvec::ArrayVec;
 use tokio::time;
-use tokio_scoped::scope;
 use tracing::*;
 use tracing_subscriber::EnvFilter;
 

@@ -299,6 +299,12 @@ async fn expand_leaf_node(
     model: &Model,
     depth: usize,
 ) -> Result<ArrayVec<[OwnedChild; 3]>> {
+    let half_your_max_action_prob = action_probs[0]
+        .iter()
+        .copied()
+        .max_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
+        .unwrap_or(f64::MIN)
+        * 0.5;
     let mut three_quaters_max_opponent_action_prob = 0.75;
     for action_prob in &action_probs[1..] {
         let max_prob = action_prob
@@ -311,7 +317,7 @@ async fn expand_leaf_node(
 
     let mut your_action_and_children = ArrayVec::<[OwnedChild; 3]>::default();
     for (d0, &prob0) in DIRECTIONS.into_iter().zip(&action_probs[0]) {
-        if prob0 <= 0.0 {
+        if prob0 <= half_your_max_action_prob {
             continue;
         }
         let mut min_reward = f64::MAX;

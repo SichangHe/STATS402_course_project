@@ -286,13 +286,6 @@ async fn make_node<'a>(
     Ok(node)
 }
 
-const DIRECTIONS: [Direction; 4] = [
-    Direction::Up,
-    Direction::Right,
-    Direction::Down,
-    Direction::Left,
-];
-
 async fn expand_leaf_node(
     action_probs: [[f64; 4]; 4],
     game: &Game,

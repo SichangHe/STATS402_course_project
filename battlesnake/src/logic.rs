@@ -7,6 +7,12 @@ mod search_tree;
 use search_tree::*;
 
 const NO_TIME: Duration = Duration::from_secs(0);
+const DIRECTIONS: [Direction; 4] = [
+    Direction::Up,
+    Direction::Right,
+    Direction::Down,
+    Direction::Left,
+];
 
 pub async fn respond_move(
     game: &Game,
@@ -48,6 +54,13 @@ async fn tree_searches(
     model: Arc<Model>,
 ) -> Result<()> {
     let mut search_tree = SearchTree::try_new(game, &model).await?;
+    let initial_direction = search_tree.root().action_probabilities[0]
+        .iter()
+        .copied()
+        .zip(DIRECTIONS)
+        .max_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap_or(Ordering::Equal))
+        .map(|(_, d)| d);
+    *direction = initial_direction;
 
     loop {
         if search_tree.nodes.len() >= TOO_MANY_NODES {

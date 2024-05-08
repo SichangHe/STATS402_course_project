@@ -317,6 +317,7 @@ async fn expand_leaf_node(
             continue;
         }
         let mut opponent_action_and_nodes = Vec::with_capacity(27);
+        let mut min_reward = f64::MAX;
         let mut max_rewards = [f64::MIN; 4];
         for (d1, &prob1) in DIRECTIONS.into_iter().zip(&action_probs[1]) {
             if prob1 <= 0.0 {
@@ -344,6 +345,7 @@ async fn expand_leaf_node(
                         Outcome::Match => SearchTreeNode::terminal(None, game, depth, None),
                     };
 
+                    min_reward = min_reward.min(node.rewards[0]);
                     for (player_id, &reward) in node.rewards.iter().enumerate() {
                         max_rewards[player_id] = max_rewards[player_id].max(reward);
                     }
@@ -367,13 +369,6 @@ async fn expand_leaf_node(
         });
         opponent_action_and_nodes.shrink_to_fit();
 
-        // Compute the minimum reward after having the opponents choose
-        // desirable actions.
-        let min_reward = opponent_action_and_nodes
-            .iter()
-            .map(|(_, node)| node.rewards[0])
-            .min_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal))
-            .unwrap_or(f64::MIN);
         let child = OwnedChild {
             your_action: d0,
             opponent_action_and_nodes,

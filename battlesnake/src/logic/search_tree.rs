@@ -89,6 +89,7 @@ impl<'a> SearchTree<'a> {
             .await?;
         trace!(leaf_node_new_children_len_before_pruning = leaf_node_new_children.len());
         prune_node_new_children(&mut leaf_node_new_children, self.leaf_nodes.len());
+        yield_now().await;
         let leaf_node_new_children = leaf_node_new_children;
         trace!(leaf_node_new_children_len = leaf_node_new_children.len());
         if leaf_node_new_children.is_empty() {
@@ -121,7 +122,7 @@ impl<'a> SearchTree<'a> {
             leaf_node = self.leaf_nodes.capacity(),
             "Capacities reserved.",
         );
-        let _break_future = async {}.await;
+        yield_now().await;
 
         for (leaf_index, children) in leaf_node_new_children {
             for OwnedChild {
@@ -155,11 +156,12 @@ impl<'a> SearchTree<'a> {
                     let node = self.get_node_mut(node_index);
                     node.parent_child_index = Some(child_index);
                 }
-                let _break_future = async {}.await;
+                yield_now().await;
             }
         }
 
         self.back_propagate_rewards();
+        yield_now().await;
         self.depth += 1;
         debug!(
             ?self.depth,
@@ -350,6 +352,7 @@ async fn expand_leaf_node(
                 }
             }
         });
+        yield_now().await;
 
         let mut opponent_action_and_nodes = maybe_opponent_action_and_nodes
             .into_iter()
@@ -385,6 +388,7 @@ async fn expand_leaf_node(
         your_action_and_children.push(child);
     }
 
+    yield_now().await;
     Ok(your_action_and_children)
 }
 

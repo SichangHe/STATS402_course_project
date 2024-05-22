@@ -16,7 +16,7 @@ use snork_engine::{
     game::{Game, Outcome},
 };
 use tinyvec::ArrayVec;
-use tokio::time;
+use tokio::{task::yield_now, time};
 use tracing::*;
 use tracing_subscriber::EnvFilter;
 

@@ -25,11 +25,13 @@ while True:  # Do not do this in IPython.
     )
     tree_time_sec = time() - start_time
     for agent in (2, 3):
-        action[agent] = env.snake_game.snake_relative_move(
-            agent, tree_agent_action[agent]
-        ) + 1
+        action[agent] = (
+            env.snake_game.snake_relative_move(agent, tree_agent_action[agent]) + 1
+        )
     obs, rewards, terms, truncs, _ = env.step(action)
-    print(f"\n\n{env.render()}\naction: {action}\ntree_agent_action: {tree_agent_action}\ntime: {network_time_sec}s (network), {tree_time_sec}s (tree)\nrewards: {rewards}")  # type: ignore
+    print(
+        f"\n\n{env.render()}\naction: {action}\ntree_agent_action: {tree_agent_action}\ntime: {network_time_sec}s (network), {tree_time_sec}s (tree)\nrewards: {rewards}"
+    )  # type: ignore
     # fmt: on
     for agent, prev_done in cummulative_done.items():
         cummulative_done[agent] = (

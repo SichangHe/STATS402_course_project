@@ -529,7 +529,9 @@ class DynPPO:
                             infos[agent]["terminal_observation"]
                         )[0]
                         with th.no_grad():
-                            terminal_value = self.ppo.policy.predict_values(terminal_obs)[0]  # type: ignore[arg-type]
+                            terminal_value = self.ppo.policy.predict_values(
+                                terminal_obs
+                            )[0]  # type: ignore[arg-type]
                         reward += self.ppo.gamma * terminal_value
 
                     cache = self.rollout_buffer_cache[agent]

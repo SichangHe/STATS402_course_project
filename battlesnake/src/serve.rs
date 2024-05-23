@@ -40,7 +40,7 @@ async fn handle_start(Json(game_request): Json<GameRequest>) -> StatusCode {
     StatusCode::OK
 }
 
-const LATENCY_MS: u64 = 60;
+const LATENCY_MS: u64 = 80;
 
 #[instrument(skip(game_request, model))]
 async fn handle_move(
